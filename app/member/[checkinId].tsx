@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -37,11 +38,18 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 
 const SENT_LINES = [
   "Intro sent. Give it time — there's no need to rush.",
-  "Message sent. Let the moment unfold naturally",
+  "Message sent. Let the moment unfold naturally.",
   "Intro sent. The next step is theirs.",
-  "Message sent. No need to force what comes next",
+  "Message sent. No need to force what comes next.",
   "Intro sent. If the connection feels right, it'll happen.",
   "Message sent. Sometimes the best connections start quietly.",
+]
+
+const REPORT_REASONS = [
+  'Something felt off',
+  'Uncomfortable message',
+  'Made me uneasy',
+  'Other',
 ]
 
 export default function MemberScreen() {
@@ -58,6 +66,15 @@ export default function MemberScreen() {
   const [error, setError]             = useState<string | null>(null)
   const [success, setSuccess]         = useState(false)
 
+  // Safety
+  const [isBlocked, setIsBlocked]           = useState(false)
+  const [blocking, setBlocking]             = useState(false)
+  const [showReportForm, setShowReportForm] = useState(false)
+  const [reportReason, setReportReason]     = useState<string | null>(null)
+  const [reportNote, setReportNote]         = useState('')
+  const [reporting, setReporting]           = useState(false)
+  const [reportDone, setReportDone]         = useState(false)
+
   useEffect(() => {
     async function load() {
       const [{ data: checkinData }, { data: { user } }] = await Promise.all([
@@ -69,17 +86,26 @@ export default function MemberScreen() {
       setCurrentUser(user)
 
       if (user && checkinData) {
-        const { data: existing } = await supabase
-          .from('messages')
-          .select('id, text')
-          .eq('sender_id', user.id)
-          .eq('checkin_id', checkinId)
-          .maybeSingle()
+        const [{ data: existing }, { data: existingBlock }] = await Promise.all([
+          supabase
+            .from('messages')
+            .select('id, text')
+            .eq('sender_id', user.id)
+            .eq('checkin_id', checkinId)
+            .maybeSingle(),
+          supabase
+            .from('blocks')
+            .select('id')
+            .eq('blocker_id', user.id)
+            .eq('blocked_user_id', checkinData.user_id)
+            .maybeSingle(),
+        ])
 
         if (existing) {
           setAlreadySent(true)
           setSentMessage(existing as SentMessage)
         }
+        if (existingBlock) setIsBlocked(true)
       }
 
       setLoading(false)
@@ -93,7 +119,6 @@ export default function MemberScreen() {
     setSending(true)
     setError(null)
 
-    // Sender must be checked in — get their active checkin for status
     const { data: senderCheckin } = await supabase
       .from('checkins')
       .select('status')
@@ -102,7 +127,7 @@ export default function MemberScreen() {
       .maybeSingle()
 
     if (!senderCheckin) {
-      setError('You need to check in first before sending a message.')
+      setError('Check in first, then send a message.')
       setSending(false)
       return
     }
@@ -121,13 +146,60 @@ export default function MemberScreen() {
     if (dbError) {
       setError(
         dbError.code === '23505'
-          ? "You've already messaged this person during this check-in."
-          : 'Could not send message. Try again.'
+          ? "You've already reached out during this check-in."
+          : 'Something went wrong. Try again.'
       )
       return
     }
 
     setSuccess(true)
+  }
+
+  function handleBlock() {
+    if (!checkin || !currentUser || blocking) return
+    Alert.alert(
+      `Block ${checkin.name}?`,
+      "You won't see each other on the live list.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            setBlocking(true)
+            const { error: dbError } = await supabase.from('blocks').insert({
+              blocker_id:      currentUser.id,
+              blocked_user_id: checkin.user_id,
+            })
+            setBlocking(false)
+            if (dbError) {
+              Alert.alert('', "Couldn't block. Try again.")
+              return
+            }
+            setIsBlocked(true)
+          },
+        },
+      ]
+    )
+  }
+
+  async function handleReport() {
+    if (!reportReason || reporting || !checkin || !currentUser) return
+    setReporting(true)
+    const { error: dbError } = await supabase.from('reports').insert({
+      reporter_id:      currentUser.id,
+      reported_user_id: checkin.user_id,
+      checkin_id:       checkin.id,
+      reason:           reportReason,
+      note:             reportNote.trim() || null,
+    })
+    setReporting(false)
+    if (dbError) {
+      Alert.alert('', "Couldn't send report. Try again.")
+      return
+    }
+    setShowReportForm(false)
+    setReportDone(true)
   }
 
   if (loading) {
@@ -156,7 +228,8 @@ export default function MemberScreen() {
   const meta              = STATUS_META[checkin.status]
   const isOwnCard         = checkin.user_id === currentUser?.id
   const isInactive        = !checkin.is_active
-  const showForm          = !isOwnCard && !isInactive && !alreadySent && !success
+  const showForm          = !isOwnCard && !isInactive && !alreadySent && !success && !isBlocked
+  const showSafety        = !isOwnCard && !isInactive
   const displayedSentText = success ? text.trim() : sentMessage?.text ?? ''
 
   return (
@@ -194,7 +267,23 @@ export default function MemberScreen() {
             <Text style={styles.stateTitle}>This person has checked out.</Text>
           )}
 
-          {(alreadySent || success) && (
+          {isBlocked && (
+            <View style={styles.safetyState}>
+              <Text style={styles.safetyStateTitle}>Blocked.</Text>
+              <Text style={styles.safetyStateBody}>
+                They won't appear on the live list.
+              </Text>
+              <TouchableOpacity
+                style={styles.backToLiveBtn}
+                onPress={() => router.replace('/(tabs)/live')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backToLiveBtnText}>Back to Live</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!isBlocked && (alreadySent || success) && (
             <View style={styles.sentBox}>
               <Text style={styles.sentLabel}>YOUR INTRO</Text>
               <View style={styles.messageBubble}>
@@ -254,6 +343,90 @@ export default function MemberScreen() {
                 }
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* Safety section */}
+          {showSafety && !isBlocked && (
+            <>
+              {reportDone ? (
+                <View style={styles.safetyState}>
+                  <Text style={styles.safetyStateTitle}>Report received.</Text>
+                  <Text style={styles.safetyStateBody}>
+                    Thank you for helping keep this space safe.
+                  </Text>
+                </View>
+              ) : showReportForm ? (
+                <View style={styles.reportForm}>
+                  <Text style={styles.reportFormLabel}>What happened?</Text>
+
+                  {REPORT_REASONS.map((reason) => (
+                    <TouchableOpacity
+                      key={reason}
+                      style={[
+                        styles.reasonCard,
+                        reportReason === reason && styles.reasonCardSelected,
+                      ]}
+                      onPress={() => setReportReason(reason)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[
+                        styles.reasonText,
+                        reportReason === reason && styles.reasonTextSelected,
+                      ]}>
+                        {reason}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+
+                  <View style={styles.reportNoteWrapper}>
+                    <TextInput
+                      style={styles.reportNoteInput}
+                      placeholder="Anything else? (optional)"
+                      placeholderTextColor="#444444"
+                      value={reportNote}
+                      onChangeText={setReportNote}
+                      multiline
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.reportSubmitBtn,
+                      (!reportReason || reporting) && styles.reportSubmitDisabled,
+                    ]}
+                    disabled={!reportReason || reporting}
+                    onPress={handleReport}
+                    activeOpacity={0.85}
+                  >
+                    {reporting
+                      ? <ActivityIndicator color="#111111" size="small" />
+                      : <Text style={styles.reportSubmitText}>Send Report</Text>
+                    }
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.cancelReport}
+                    onPress={() => { setShowReportForm(false); setReportReason(null); setReportNote('') }}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={styles.cancelReportText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.safetyLinks}>
+                  <TouchableOpacity onPress={handleBlock} disabled={blocking} activeOpacity={0.6}>
+                    {blocking
+                      ? <ActivityIndicator color="#3A3A3A" size="small" />
+                      : <Text style={styles.safetyLink}>Block</Text>
+                    }
+                  </TouchableOpacity>
+                  <Text style={styles.safetyDivider}>·</Text>
+                  <TouchableOpacity onPress={() => setShowReportForm(true)} activeOpacity={0.6}>
+                    <Text style={styles.safetyLink}>Report</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -365,4 +538,70 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: { backgroundColor: '#2A2A2A' },
   sendButtonText: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: 0.3 },
+
+  // Safety
+  safetyLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 48,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#1A1A1A',
+  },
+  safetyLink:    { fontSize: 13, color: '#3A3A3A' },
+  safetyDivider: { fontSize: 13, color: '#2A2A2A' },
+  safetyState: {
+    marginTop: 40,
+    gap: 8,
+  },
+  safetyStateTitle: { fontSize: 16, fontWeight: '600', color: '#555555' },
+  safetyStateBody:  { fontSize: 13, color: '#3A3A3A', lineHeight: 20 },
+  reportForm: {
+    marginTop: 32,
+    gap: 10,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#1A1A1A',
+  },
+  reportFormLabel: { fontSize: 15, fontWeight: '600', color: '#888888', marginBottom: 4 },
+  reasonCard: {
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  reasonCardSelected: {
+    borderColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF0D',
+  },
+  reasonText:         { fontSize: 14, color: '#555555' },
+  reasonTextSelected: { color: '#FFFFFF', fontWeight: '500' },
+  reportNoteWrapper: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 4,
+  },
+  reportNoteInput: {
+    fontSize: 14,
+    color: '#AAAAAA',
+    minHeight: 56,
+    textAlignVertical: 'top',
+  },
+  reportSubmitBtn: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  reportSubmitDisabled: { backgroundColor: '#2A2A2A' },
+  reportSubmitText: { fontSize: 15, fontWeight: '700', color: '#111111' },
+  cancelReport:     { alignItems: 'center', paddingVertical: 10 },
+  cancelReportText: { fontSize: 14, color: '#3A3A3A' },
 })

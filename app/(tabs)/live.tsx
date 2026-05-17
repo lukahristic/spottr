@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 
 type CheckIn = {
@@ -42,6 +42,7 @@ export default function LiveListScreen() {
   const [gymName, setGymName]             = useState<string | null>(null)
   const [loading, setLoading]             = useState(true)
   const [error, setError]                 = useState<string | null>(null)
+  const [blockedIds, setBlockedIds]       = useState<Set<string>>(new Set())
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -136,6 +137,34 @@ export default function LiveListScreen() {
       if (channel) supabase.removeChannel(channel)
     }
   }, [])
+
+  // Fetch blocks on every focus so the list updates immediately after blocking someone
+  useFocusEffect(
+    useCallback(() => {
+      async function fetchBlocks() {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const [{ data: myBlocks }, { data: blockedMe }] = await Promise.all([
+          supabase.from('blocks').select('blocked_user_id').eq('blocker_id', user.id),
+          supabase.from('blocks').select('blocker_id').eq('blocked_user_id', user.id),
+        ])
+
+        setBlockedIds(new Set([
+          ...(myBlocks?.map((b) => b.blocked_user_id) ?? []),
+          ...(blockedMe?.map((b) => b.blocker_id) ?? []),
+        ]))
+      }
+
+      fetchBlocks()
+    }, [])
+  )
+
+  // Re-filter the live list whenever the block set changes
+  useEffect(() => {
+    if (blockedIds.size === 0) return
+    setCheckins((prev) => prev.filter((c) => !c.user_id || !blockedIds.has(c.user_id)))
+  }, [blockedIds])
 
   if (loading) {
     return (
