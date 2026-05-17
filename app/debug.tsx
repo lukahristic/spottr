@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { TouchableOpacity } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../lib/supabase'
 
 type Gym = {
@@ -20,8 +21,17 @@ type Gym = {
 }
 
 export default function DebugScreen() {
-  const [gyms, setGyms]       = useState<Gym[]>([])
-  const [loading, setLoading] = useState(true)
+  const [gyms, setGyms]           = useState<Gym[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [resetting, setResetting] = useState(false)
+
+  async function handleReset() {
+    if (resetting) return
+    setResetting(true)
+    await AsyncStorage.removeItem('spottr_onboarding_seen')
+    router.replace('/(onboarding)')
+    await supabase.auth.signOut()
+  }
 
   useEffect(() => {
     supabase
@@ -42,9 +52,25 @@ export default function DebugScreen() {
         </TouchableOpacity>
 
         <Text style={styles.heading}>Debug</Text>
-        <Text style={styles.subheading}>Gym deep link URLs</Text>
 
         {loading && <ActivityIndicator color="#FFFFFF" style={{ marginTop: 32 }} />}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>DEV TOOLS</Text>
+          <TouchableOpacity
+            style={[styles.resetButton, resetting && styles.resetButtonDisabled]}
+            onPress={handleReset}
+            disabled={resetting}
+            activeOpacity={0.7}
+          >
+            {resetting
+              ? <ActivityIndicator color="#EAB308" size="small" />
+              : <Text style={styles.resetButtonText}>Reset Onboarding</Text>
+            }
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.subheading}>Gym deep link URLs</Text>
 
         {gyms.map((gym) => (
           <View key={gym.id} style={styles.row}>
@@ -93,4 +119,15 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   inactiveBadgeText: { fontSize: 10, color: '#EF4444', fontWeight: '600' },
+  section:      { marginBottom: 32 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#444444', letterSpacing: 1.5, marginBottom: 12 },
+  resetButton: {
+    borderWidth: 1,
+    borderColor: '#EAB30840',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  resetButtonDisabled: { opacity: 0.5 },
+  resetButtonText: { fontSize: 15, fontWeight: '600', color: '#EAB308' },
 })
