@@ -69,6 +69,7 @@ export default function MemberScreen() {
   // Safety
   const [isBlocked, setIsBlocked]           = useState(false)
   const [blocking, setBlocking]             = useState(false)
+  const [unblocking, setUnblocking]         = useState(false)
   const [showReportForm, setShowReportForm] = useState(false)
   const [reportReason, setReportReason]     = useState<string | null>(null)
   const [reportNote, setReportNote]         = useState('')
@@ -183,6 +184,34 @@ export default function MemberScreen() {
     )
   }
 
+  function handleUnblock() {
+    if (!checkin || !currentUser || unblocking) return
+    Alert.alert(
+      'Unblock this person?',
+      'They will be able to see you again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          onPress: async () => {
+            setUnblocking(true)
+            const { error: dbError } = await supabase
+              .from('blocks')
+              .delete()
+              .eq('blocker_id', currentUser.id)
+              .eq('blocked_user_id', checkin.user_id)
+            setUnblocking(false)
+            if (dbError) {
+              Alert.alert('', 'Something went wrong. Try again.')
+              return
+            }
+            setIsBlocked(false)
+          },
+        },
+      ]
+    )
+  }
+
   async function handleReport() {
     if (!reportReason || reporting || !checkin || !currentUser) return
     setReporting(true)
@@ -268,19 +297,7 @@ export default function MemberScreen() {
           )}
 
           {isBlocked && (
-            <View style={styles.safetyState}>
-              <Text style={styles.safetyStateTitle}>Blocked.</Text>
-              <Text style={styles.safetyStateBody}>
-                They won't appear on the live list.
-              </Text>
-              <TouchableOpacity
-                style={styles.backToLiveBtn}
-                onPress={() => router.replace('/(tabs)/live')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.backToLiveBtnText}>Back to Live</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.stateTitle}>You've blocked this person.</Text>
           )}
 
           {!isBlocked && (alreadySent || success) && (
@@ -346,7 +363,7 @@ export default function MemberScreen() {
           )}
 
           {/* Safety section */}
-          {showSafety && !isBlocked && (
+          {showSafety && (
             <>
               {reportDone ? (
                 <View style={styles.safetyState}>
@@ -414,12 +431,21 @@ export default function MemberScreen() {
                 </View>
               ) : (
                 <View style={styles.safetyLinks}>
-                  <TouchableOpacity onPress={handleBlock} disabled={blocking} activeOpacity={0.6}>
-                    {blocking
-                      ? <ActivityIndicator color="#3A3A3A" size="small" />
-                      : <Text style={styles.safetyLink}>Block</Text>
-                    }
-                  </TouchableOpacity>
+                  {isBlocked ? (
+                    <TouchableOpacity onPress={handleUnblock} disabled={unblocking} activeOpacity={0.6}>
+                      {unblocking
+                        ? <ActivityIndicator color="#3A3A3A" size="small" />
+                        : <Text style={styles.safetyLink}>Unblock</Text>
+                      }
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={handleBlock} disabled={blocking} activeOpacity={0.6}>
+                      {blocking
+                        ? <ActivityIndicator color="#3A3A3A" size="small" />
+                        : <Text style={styles.safetyLink}>Block</Text>
+                      }
+                    </TouchableOpacity>
+                  )}
                   <Text style={styles.safetyDivider}>·</Text>
                   <TouchableOpacity onPress={() => setShowReportForm(true)} activeOpacity={0.6}>
                     <Text style={styles.safetyLink}>Report</Text>
