@@ -60,7 +60,7 @@ export default function LiveListScreen() {
     fetchCheckins()
 
     const channel = supabase
-      .channel('checkins-live')
+      .channel(`checkins-live-${Date.now()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'checkins' },

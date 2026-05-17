@@ -35,6 +35,15 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   just_training:  { label: 'Just Training',  color: '#3B82F6' },
 }
 
+const SENT_LINES = [
+  "Intro sent. Give it time — there's no need to rush.",
+  "Message sent. Let the moment unfold naturally",
+  "Intro sent. The next step is theirs.",
+  "Message sent. No need to force what comes next",
+  "Intro sent. If the connection feels right, it'll happen.",
+  "Message sent. Sometimes the best connections start quietly.",
+]
+
 export default function MemberScreen() {
   const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
 
@@ -43,6 +52,7 @@ export default function MemberScreen() {
   const [alreadySent, setAlreadySent] = useState(false)
   const [sentMessage, setSentMessage] = useState<SentMessage | null>(null)
   const [loading, setLoading]         = useState(true)
+  const [sentLine]                    = useState(() => SENT_LINES[Math.floor(Math.random() * SENT_LINES.length)])
   const [text, setText]               = useState('')
   const [sending, setSending]         = useState(false)
   const [error, setError]             = useState<string | null>(null)
@@ -143,11 +153,10 @@ export default function MemberScreen() {
     )
   }
 
-  const meta       = STATUS_META[checkin.status]
-  const isOwnCard  = checkin.user_id === currentUser?.id
-  const isInactive = !checkin.is_active
-  const showForm   = !isOwnCard && !isInactive && !alreadySent && !success
-
+  const meta              = STATUS_META[checkin.status]
+  const isOwnCard         = checkin.user_id === currentUser?.id
+  const isInactive        = !checkin.is_active
+  const showForm          = !isOwnCard && !isInactive && !alreadySent && !success
   const displayedSentText = success ? text.trim() : sentMessage?.text ?? ''
 
   return (
@@ -186,11 +195,22 @@ export default function MemberScreen() {
           )}
 
           {(alreadySent || success) && (
-            <View style={styles.successBox}>
-              <Text style={styles.successTitle}>Message sent ✓</Text>
-              <View style={styles.sentPreview}>
-                <Text style={styles.sentText}>"{displayedSentText}"</Text>
+            <View style={styles.sentBox}>
+              <Text style={styles.sentLabel}>YOUR INTRO</Text>
+              <View style={styles.messageBubble}>
+                <Text style={styles.messageBubbleText}>{displayedSentText}</Text>
               </View>
+              <Text style={styles.sentNotice}>{sentLine}</Text>
+              <Text style={styles.nextStepHint}>
+                If they reply, you'll see it in your Profile tab.
+              </Text>
+              <TouchableOpacity
+                style={styles.backToLiveBtn}
+                onPress={() => router.replace('/(tabs)/live')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backToLiveBtnText}>Back to Live</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -271,16 +291,51 @@ const styles = StyleSheet.create({
   memberGoal:  { fontSize: 15, color: '#888888' },
   divider:     { height: 1, backgroundColor: '#2A2A2A', marginVertical: 28 },
   stateTitle:  { fontSize: 16, fontWeight: '500', color: '#666666' },
-  successBox:  { gap: 12 },
-  successTitle: { fontSize: 16, fontWeight: '600', color: '#22C55E' },
-  sentPreview: {
-    backgroundColor: '#1A1A1A',
+  sentBox: { gap: 20 },
+  sentLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#444444',
+    letterSpacing: 1,
+  },
+  messageBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#1A2A1A',
+    borderRadius: 16,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '88%',
+  },
+  messageBubbleText: {
+    fontSize: 15,
+    color: '#CCCCCC',
+    lineHeight: 22,
+  },
+  sentNotice: {
+    fontSize: 16,
+    color: '#555555',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  nextStepHint: {
+    fontSize: 13,
+    color: '#3A3A3A',
+    textAlign: 'center',
+  },
+  backToLiveBtn: {
     borderWidth: 1,
     borderColor: '#2A2A2A',
     borderRadius: 12,
-    padding: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
   },
-  sentText: { fontSize: 15, color: '#AAAAAA', lineHeight: 22 },
+  backToLiveBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#666666',
+  },
   form:      { gap: 8 },
   formLabel: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', marginBottom: 2 },
   formHint:  { fontSize: 13, color: '#666666', marginBottom: 12 },
