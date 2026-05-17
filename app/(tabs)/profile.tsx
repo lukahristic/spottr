@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
@@ -18,6 +19,11 @@ type Message = {
   sender_status: 'happy_to_help' | 'need_guidance' | 'just_training'
   text: string
   created_at: string
+}
+
+type BlockedUser = {
+  blockedUserId: string
+  name: string
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -33,6 +39,8 @@ export default function ProfileScreen() {
   const [loadingMsgs, setLoadingMsgs]       = useState(false)
   const [checkingOut, setCheckingOut]       = useState(false)
   const [signingOut, setSigningOut]         = useState(false)
+  const [blockedUsers, setBlockedUsers]     = useState<BlockedUser[]>([])
+  const [unblockingId, setUnblockingId]     = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -63,6 +71,40 @@ export default function ProfileScreen() {
         .then(({ data }) => {
           setActiveCheckinId(data?.id ?? null)
         })
+
+      // Fetch blocked users + resolve their names from checkins
+      ;(async () => {
+        const { data: blocks } = await supabase
+          .from('blocks')
+          .select('blocked_user_id')
+          .eq('blocker_id', user.id)
+
+        if (!blocks || blocks.length === 0) {
+          setBlockedUsers([])
+          return
+        }
+
+        const ids = blocks.map((b) => b.blocked_user_id)
+
+        const { data: checkins } = await supabase
+          .from('checkins')
+          .select('user_id, name')
+          .in('user_id', ids)
+          .order('checked_in_at', { ascending: false })
+
+        const seen = new Set<string>()
+        const result: BlockedUser[] = []
+        for (const c of checkins ?? []) {
+          if (!seen.has(c.user_id)) {
+            seen.add(c.user_id)
+            result.push({ blockedUserId: c.user_id, name: c.name })
+          }
+        }
+        for (const id of ids) {
+          if (!seen.has(id)) result.push({ blockedUserId: id, name: 'Unknown' })
+        }
+        setBlockedUsers(result)
+      })()
     }, [user?.id])
   )
 
@@ -81,6 +123,34 @@ export default function ProfileScreen() {
   async function handleSignOut() {
     setSigningOut(true)
     await supabase.auth.signOut()
+  }
+
+  function handleUnblock(bu: BlockedUser) {
+    if (!user || unblockingId) return
+    Alert.alert(
+      'Unblock this person?',
+      'They will be able to see you again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          onPress: async () => {
+            setUnblockingId(bu.blockedUserId)
+            const { error } = await supabase
+              .from('blocks')
+              .delete()
+              .eq('blocker_id', user.id)
+              .eq('blocked_user_id', bu.blockedUserId)
+            setUnblockingId(null)
+            if (error) {
+              Alert.alert('', 'Something went wrong. Try again.')
+              return
+            }
+            setBlockedUsers((prev) => prev.filter((b) => b.blockedUserId !== bu.blockedUserId))
+          },
+        },
+      ]
+    )
   }
 
   const name     = user?.user_metadata?.name ?? '—'
@@ -145,6 +215,28 @@ export default function ProfileScreen() {
             <Text style={styles.messageText}>{msg.text}</Text>
           </View>
         ))}
+
+        {/* Blocked Users — hidden when list is empty */}
+        {blockedUsers.length > 0 && (
+          <View style={styles.blockedSection}>
+            <Text style={[styles.sectionLabel, styles.blockedLabel]}>BLOCKED</Text>
+            {blockedUsers.map((bu) => (
+              <View key={bu.blockedUserId} style={styles.blockedRow}>
+                <Text style={styles.blockedName}>{bu.name}</Text>
+                <TouchableOpacity
+                  onPress={() => handleUnblock(bu)}
+                  disabled={!!unblockingId}
+                  activeOpacity={0.6}
+                >
+                  {unblockingId === bu.blockedUserId
+                    ? <ActivityIndicator color="#555555" size="small" />
+                    : <Text style={styles.unblockText}>Unblock</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Sign Out */}
         <TouchableOpacity
@@ -243,6 +335,18 @@ const styles = StyleSheet.create({
   },
   actionDisabled: { opacity: 0.5 },
   signOutText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
+  blockedSection: { marginTop: 32, marginBottom: 8 },
+  blockedLabel:   { marginBottom: 14 },
+  blockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A1A1A',
+  },
+  blockedName:  { fontSize: 14, color: '#666666' },
+  unblockText:  { fontSize: 13, color: '#555555' },
   debugLink:     { alignItems: 'center', marginTop: 32 },
   debugLinkText: { fontSize: 11, color: '#2A2A2A' },
 })
