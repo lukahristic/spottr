@@ -3,14 +3,17 @@ import {
   View,
   Text,
   FlatList,
+  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { router } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 
 type CheckIn = {
   id: string
+  user_id: string | null
   name: string
   status: 'happy_to_help' | 'need_guidance' | 'just_training'
   goal: string
@@ -25,9 +28,16 @@ const STATUS_META: Record<CheckIn['status'], { label: string; color: string }> =
 }
 
 export default function LiveListScreen() {
-  const [checkins, setCheckins] = useState<CheckIn[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState<string | null>(null)
+  const [checkins, setCheckins]       = useState<CheckIn[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUserId(user?.id ?? null)
+    })
+  }, [])
 
   useEffect(() => {
     async function fetchCheckins() {
@@ -60,9 +70,7 @@ export default function LiveListScreen() {
       )
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   if (loading) {
@@ -96,12 +104,23 @@ export default function LiveListScreen() {
           </View>
         }
         renderItem={({ item }) => {
-          const meta = STATUS_META[item.status]
+          const meta    = STATUS_META[item.status]
+          const isOwn   = item.user_id !== null && item.user_id === currentUserId
+          const tappable = !isOwn && item.user_id !== null
+
           return (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => tappable && router.push(`/member/${item.id}`)}
+              activeOpacity={tappable ? 0.7 : 1}
+              disabled={!tappable}
+            >
               <View style={[styles.dot, { backgroundColor: meta.color }]} />
               <View style={styles.cardBody}>
-                <Text style={styles.cardName}>{item.name}</Text>
+                <View style={styles.cardNameRow}>
+                  <Text style={styles.cardName}>{item.name}</Text>
+                  {isOwn && <Text style={styles.youLabel}>You</Text>}
+                </View>
                 <Text style={styles.cardGoal}>{item.goal}</Text>
               </View>
               <View style={[styles.badge, { borderColor: `${meta.color}60` }]}>
@@ -109,7 +128,7 @@ export default function LiveListScreen() {
                   {meta.label}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           )
         }}
       />
@@ -118,58 +137,17 @@ export default function LiveListScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#111111',
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  list: {
-    padding: 24,
-    paddingBottom: 48,
-    flexGrow: 1,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  subheading: {
-    fontSize: 15,
-    color: '#888888',
-  },
-  error: {
-    fontSize: 14,
-    color: '#EF4444',
-    marginTop: 12,
-  },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingTop: 80,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  emptyHint: {
-    fontSize: 14,
-    color: '#555555',
-  },
+  safe:   { flex: 1, backgroundColor: '#111111' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  list:   { padding: 24, paddingBottom: 48, flexGrow: 1 },
+  header: { marginBottom: 24 },
+  heading:    { fontSize: 32, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
+  subheading: { fontSize: 15, color: '#888888' },
+  error:      { fontSize: 14, color: '#EF4444', marginTop: 12 },
+  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 80 },
+  emptyIcon:  { fontSize: 40, marginBottom: 8 },
+  emptyText:  { fontSize: 17, fontWeight: '600', color: '#FFFFFF' },
+  emptyHint:  { fontSize: 14, color: '#555555' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -181,25 +159,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 14,
   },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    flexShrink: 0,
-  },
-  cardBody: {
-    flex: 1,
-    gap: 3,
-  },
-  cardName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  cardGoal: {
-    fontSize: 13,
-    color: '#888888',
-  },
+  dot:  { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  cardBody:    { flex: 1, gap: 3 },
+  cardNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardName:    { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  youLabel:    { fontSize: 11, fontWeight: '600', color: '#555555', letterSpacing: 0.5 },
+  cardGoal:    { fontSize: 13, color: '#888888' },
   badge: {
     borderWidth: 1,
     borderRadius: 8,
@@ -207,8 +172,5 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     flexShrink: 0,
   },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  badgeText: { fontSize: 12, fontWeight: '600' },
 })

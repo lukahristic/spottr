@@ -53,11 +53,30 @@ export default function CheckInScreen() {
     setLoading(true)
     setError(null)
 
-    const { error: dbError } = await supabase.from('checkins').insert({
-      name: name.trim(),
-      status,
-      goal,
-    })
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      setError('Not signed in. Please sign in again.')
+      setLoading(false)
+      return
+    }
+
+    // Check for an existing active check-in for this user
+    const { data: existing } = await supabase
+      .from('checkins')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    const { error: dbError } = existing
+      ? await supabase
+          .from('checkins')
+          .update({ name: name.trim(), status, goal })
+          .eq('id', existing.id)
+      : await supabase
+          .from('checkins')
+          .insert({ name: name.trim(), status, goal, user_id: user.id })
 
     setLoading(false)
 
