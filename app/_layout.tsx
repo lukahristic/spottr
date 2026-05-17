@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Stack, router, useSegments } from 'expo-router'
 import { Session } from '@supabase/supabase-js'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Notifications from 'expo-notifications'
 import { supabase } from '../lib/supabase'
+import { registerForPushNotificationsAsync } from '../lib/notifications'
 
 export default function RootLayout() {
-  const [session, setSession]             = useState<Session | null>(null)
-  const [initializing, setInit]           = useState(true)
+  const [session, setSession]               = useState<Session | null>(null)
+  const [initializing, setInit]             = useState(true)
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null)
-  const segments                          = useSegments()
+  const segments                            = useSegments()
+  const notificationListener                = useRef<Notifications.EventSubscription | null>(null)
+  const responseListener                    = useRef<Notifications.EventSubscription | null>(null)
 
   useEffect(() => {
     async function init() {
@@ -25,9 +29,19 @@ export default function RootLayout() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      if (session) registerForPushNotificationsAsync()
     })
 
-    return () => subscription.unsubscribe()
+    // Navigate to profile inbox when user taps a notification
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
+      router.replace('/(tabs)/profile')
+    })
+
+    return () => {
+      subscription.unsubscribe()
+      notificationListener.current?.remove()
+      responseListener.current?.remove()
+    }
   }, [])
 
   useEffect(() => {
@@ -35,7 +49,6 @@ export default function RootLayout() {
 
     const inAuth       = segments[0] === '(auth)'
     const inOnboarding = segments[0] === '(onboarding)'
-    const inTabs       = segments[0] === '(tabs)'
 
     if (session && (inAuth || inOnboarding)) {
       router.replace('/(tabs)')

@@ -214,3 +214,14 @@ Before writing any code:
 4. File Changes — list affected files
 5. Code Changes
 6. Testing Checklist
+
+## Git Commit Rules
+Always use conventional commit format:
+- feat: new feature
+- fix: bug fix
+- chore: maintenance
+- refactor: code restructure
+- docs: documentation
+
+Example: feat: add block and unblock feature
+Never commit without a descriptive message.
