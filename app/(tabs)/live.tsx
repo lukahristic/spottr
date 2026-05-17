@@ -27,11 +27,19 @@ const STATUS_META: Record<CheckIn['status'], { label: string; color: string }> =
   just_training:  { label: 'Just Training',  color: '#3B82F6' },
 }
 
+function relativeTime(checkedInAt: string): { label: string; warn: boolean } {
+  const mins = Math.floor((Date.now() - new Date(checkedInAt).getTime()) / 60_000)
+  if (mins < 5)    return { label: 'Just now',                         warn: false }
+  if (mins < 60)   return { label: `${mins} mins ago`,                 warn: false }
+  if (mins >= 150) return { label: 'Leaving soon',                     warn: true  }
+  return                  { label: `${Math.floor(mins / 60)} hrs ago`, warn: false }
+}
+
 export default function LiveListScreen() {
-  const [checkins, setCheckins]       = useState<CheckIn[]>([])
+  const [checkins, setCheckins]           = useState<CheckIn[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState<string | null>(null)
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -41,6 +49,14 @@ export default function LiveListScreen() {
 
   useEffect(() => {
     async function fetchCheckins() {
+      // Expire stale check-ins before fetching the list
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+      await supabase
+        .from('checkins')
+        .update({ is_active: false })
+        .eq('is_active', true)
+        .lt('checked_in_at', threeHoursAgo)
+
       const { data, error: dbError } = await supabase
         .from('checkins')
         .select('*')
@@ -66,6 +82,16 @@ export default function LiveListScreen() {
         { event: 'INSERT', schema: 'public', table: 'checkins' },
         (payload) => {
           setCheckins((prev) => [payload.new as CheckIn, ...prev])
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'checkins' },
+        (payload) => {
+          const updated = payload.new as CheckIn
+          if (!updated.is_active) {
+            setCheckins((prev) => prev.filter((c) => c.id !== updated.id))
+          }
         }
       )
       .subscribe()
@@ -104,9 +130,10 @@ export default function LiveListScreen() {
           </View>
         }
         renderItem={({ item }) => {
-          const meta    = STATUS_META[item.status]
-          const isOwn   = item.user_id !== null && item.user_id === currentUserId
+          const meta     = STATUS_META[item.status]
+          const isOwn    = item.user_id !== null && item.user_id === currentUserId
           const tappable = !isOwn && item.user_id !== null
+          const time     = relativeTime(item.checked_in_at)
 
           return (
             <TouchableOpacity
@@ -122,6 +149,9 @@ export default function LiveListScreen() {
                   {isOwn && <Text style={styles.youLabel}>You</Text>}
                 </View>
                 <Text style={styles.cardGoal}>{item.goal}</Text>
+                <Text style={[styles.cardTime, time.warn && styles.cardTimeWarn]}>
+                  {time.label}
+                </Text>
               </View>
               <View style={[styles.badge, { borderColor: `${meta.color}60` }]}>
                 <Text style={[styles.badgeText, { color: meta.color }]}>
@@ -159,12 +189,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 14,
   },
-  dot:  { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  dot:         { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   cardBody:    { flex: 1, gap: 3 },
   cardNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardName:    { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
   youLabel:    { fontSize: 11, fontWeight: '600', color: '#555555', letterSpacing: 0.5 },
   cardGoal:    { fontSize: 13, color: '#888888' },
+  cardTime:    { fontSize: 12, color: '#555555' },
+  cardTimeWarn: { color: '#EAB308' },
   badge: {
     borderWidth: 1,
     borderRadius: 8,

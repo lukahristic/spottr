@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 
@@ -27,10 +27,12 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function ProfileScreen() {
-  const [user, setUser]               = useState<User | null>(null)
-  const [messages, setMessages]       = useState<Message[]>([])
-  const [loadingMsgs, setLoadingMsgs] = useState(false)
-  const [signingOut, setSigningOut]   = useState(false)
+  const [user, setUser]                     = useState<User | null>(null)
+  const [messages, setMessages]             = useState<Message[]>([])
+  const [activeCheckinId, setActiveCheckinId] = useState<string | null>(null)
+  const [loadingMsgs, setLoadingMsgs]       = useState(false)
+  const [checkingOut, setCheckingOut]       = useState(false)
+  const [signingOut, setSigningOut]         = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -39,7 +41,9 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return
+
       setLoadingMsgs(true)
+
       supabase
         .from('messages')
         .select('id, sender_name, sender_status, text, created_at')
@@ -49,8 +53,30 @@ export default function ProfileScreen() {
           setMessages((data as Message[]) ?? [])
           setLoadingMsgs(false)
         })
+
+      supabase
+        .from('checkins')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle()
+        .then(({ data }) => {
+          setActiveCheckinId(data?.id ?? null)
+        })
     }, [user?.id])
   )
+
+  async function handleCheckOut() {
+    if (!activeCheckinId || checkingOut) return
+    setCheckingOut(true)
+    await supabase
+      .from('checkins')
+      .update({ is_active: false })
+      .eq('id', activeCheckinId)
+    setCheckingOut(false)
+    setActiveCheckinId(null)
+    router.replace('/(tabs)')
+  }
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -80,6 +106,21 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Check Out — only shown when active check-in exists */}
+        {activeCheckinId !== null && (
+          <TouchableOpacity
+            style={[styles.checkOutButton, checkingOut && styles.actionDisabled]}
+            onPress={handleCheckOut}
+            disabled={checkingOut}
+            activeOpacity={0.7}
+          >
+            {checkingOut
+              ? <ActivityIndicator color="#EAB308" />
+              : <Text style={styles.checkOutText}>Check Out</Text>
+            }
+          </TouchableOpacity>
+        )}
+
         {/* Inbox */}
         <View style={styles.inboxHeader}>
           <Text style={styles.sectionLabel}>INBOX</Text>
@@ -105,8 +146,9 @@ export default function ProfileScreen() {
           </View>
         ))}
 
+        {/* Sign Out */}
         <TouchableOpacity
-          style={[styles.signOutButton, signingOut && styles.signOutDisabled]}
+          style={[styles.signOutButton, signingOut && styles.actionDisabled]}
           onPress={handleSignOut}
           disabled={signingOut}
           activeOpacity={0.7}
@@ -135,7 +177,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     gap: 16,
-    marginBottom: 32,
+    marginBottom: 16,
   },
   avatar: {
     width: 56,
@@ -146,23 +188,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText:      { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
-  identityInfo:    { flex: 1, gap: 4 },
-  identityName:    { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
-  identityEmail:   { fontSize: 14, color: '#888888' },
+  avatarText:    { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  identityInfo:  { flex: 1, gap: 4 },
+  identityName:  { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
+  identityEmail: { fontSize: 14, color: '#888888' },
+  checkOutButton: {
+    borderWidth: 1,
+    borderColor: '#EAB30840',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  checkOutText: { fontSize: 15, fontWeight: '600', color: '#EAB308' },
   inboxHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#555555',
-    letterSpacing: 1,
-  },
-  inboxEmpty: { gap: 4, marginBottom: 32 },
+  sectionLabel:   { fontSize: 12, fontWeight: '700', color: '#555555', letterSpacing: 1 },
+  inboxEmpty:     { gap: 4, marginBottom: 32 },
   inboxEmptyText: { fontSize: 15, color: '#444444', fontWeight: '500' },
   inboxEmptyHint: { fontSize: 13, color: '#333333' },
   messageCard: {
@@ -174,9 +220,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 8,
   },
-  messageTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  senderDot:  { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  senderName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  messageTop:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  senderDot:   { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  senderName:  { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   messageText: { fontSize: 14, color: '#AAAAAA', lineHeight: 20 },
   signOutButton: {
     borderWidth: 1,
@@ -186,6 +232,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
   },
-  signOutDisabled: { opacity: 0.5 },
+  actionDisabled: { opacity: 0.5 },
   signOutText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
 })

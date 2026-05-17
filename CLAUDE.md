@@ -184,3 +184,8 @@ Ask only when:
 - deleting files
 - making database schema changes
 - changing environment variables
+
+## Active Skills
+For any screen changes or new screens, always apply 
+the ux-screen-review skill from 
+.claude/skills/ux-screen-review.md automatically.
