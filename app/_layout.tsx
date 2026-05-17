@@ -37,6 +37,8 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="gym/[slug]" />
+      <Stack.Screen name="debug" />
     </Stack>
   )
 }

@@ -19,6 +19,7 @@ type CheckIn = {
   goal: string
   checked_in_at: string
   is_active: boolean
+  gym_id: string
 }
 
 const STATUS_META: Record<CheckIn['status'], { label: string; color: string }> = {
@@ -38,6 +39,7 @@ function relativeTime(checkedInAt: string): { label: string; warn: boolean } {
 export default function LiveListScreen() {
   const [checkins, setCheckins]           = useState<CheckIn[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [gymName, setGymName]             = useState<string | null>(null)
   const [loading, setLoading]             = useState(true)
   const [error, setError]                 = useState<string | null>(null)
 
@@ -48,8 +50,9 @@ export default function LiveListScreen() {
   }, [])
 
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
     async function fetchCheckins() {
-      // Expire stale check-ins before fetching the list
       const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
       await supabase
         .from('checkins')
@@ -57,10 +60,42 @@ export default function LiveListScreen() {
         .eq('is_active', true)
         .lt('checked_in_at', threeHoursAgo)
 
+      // Get current user's active checkin to determine their gym
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      const { data: myCheckin } = await supabase
+        .from('checkins')
+        .select('gym_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (!myCheckin?.gym_id) {
+        setCheckins([])
+        setLoading(false)
+        return
+      }
+
+      const gymId = myCheckin.gym_id
+
+      // Fetch gym name
+      const { data: gymData } = await supabase
+        .from('gyms')
+        .select('name')
+        .eq('id', gymId)
+        .maybeSingle()
+
+      setGymName(gymData?.name ?? null)
+
       const { data, error: dbError } = await supabase
         .from('checkins')
         .select('*')
         .eq('is_active', true)
+        .eq('gym_id', gymId)
         .order('checked_in_at', { ascending: false })
 
       setLoading(false)
@@ -71,32 +106,35 @@ export default function LiveListScreen() {
       }
 
       setCheckins(data as CheckIn[])
+
+      // Realtime: only listen for this gym
+      channel = supabase
+        .channel(`checkins-live-${gymId}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'checkins', filter: `gym_id=eq.${gymId}` },
+          (payload) => {
+            setCheckins((prev) => [payload.new as CheckIn, ...prev])
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'checkins', filter: `gym_id=eq.${gymId}` },
+          (payload) => {
+            const updated = payload.new as CheckIn
+            if (!updated.is_active) {
+              setCheckins((prev) => prev.filter((c) => c.id !== updated.id))
+            }
+          }
+        )
+        .subscribe()
     }
 
     fetchCheckins()
 
-    const channel = supabase
-      .channel(`checkins-live-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'checkins' },
-        (payload) => {
-          setCheckins((prev) => [payload.new as CheckIn, ...prev])
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'checkins' },
-        (payload) => {
-          const updated = payload.new as CheckIn
-          if (!updated.is_active) {
-            setCheckins((prev) => prev.filter((c) => c.id !== updated.id))
-          }
-        }
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [])
 
   if (loading) {
@@ -118,7 +156,9 @@ export default function LiveListScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.heading}>Live</Text>
-            <Text style={styles.subheading}>Members at your gym right now.</Text>
+            <Text style={styles.subheading}>
+              {gymName ? `Members at ${gymName} right now.` : 'Members at your gym right now.'}
+            </Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }

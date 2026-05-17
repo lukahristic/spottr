@@ -189,3 +189,13 @@ Ask only when:
 For any screen changes or new screens, always apply 
 the ux-screen-review skill from 
 .claude/skills/ux-screen-review.md automatically.
+
+## Gym Privacy Rules
+- Users only see members checked into the same gym
+- Users not checked in see gym list and member counts only
+- No profile visibility without matching gym_id
+- gym_id is required on every check-in insert
+
+## Deep Link Format
+spottr://gym/[slug]
+QR generation comes after app is published.
