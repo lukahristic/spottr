@@ -20,14 +20,14 @@ export default function HowItWorksScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.heading}>Three simple steps.</Text>
+        <Text style={styles.heading}>It starts with showing up.</Text>
 
         {/* Card 1 */}
         <View style={styles.card}>
           <Text style={styles.cardIcon}>📍</Text>
           <Text style={styles.cardTitle}>Check in to your gym</Text>
           <Text style={styles.cardBody}>
-            Arrive and tap in. You're only visible to members checked into the same gym — no one else can see you.
+            Tap in when you arrive. Only members in the same gym will see you — no one outside.
           </Text>
         </View>
 
@@ -35,27 +35,27 @@ export default function HowItWorksScreen() {
         <View style={styles.card}>
           <Text style={styles.cardIcon}>🎯</Text>
           <Text style={styles.cardTitle}>Set your status</Text>
-          <Text style={styles.cardBody}>Let others know what you're open to today.</Text>
+          <Text style={styles.cardBody}>Tell others what kind of session you're having.</Text>
           <View style={styles.statusList}>
             <View style={styles.statusRow}>
               <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
               <View style={styles.statusInfo}>
                 <Text style={styles.statusLabel}>Happy to Help</Text>
-                <Text style={styles.statusHint}>Available to guide or spot others</Text>
+                <Text style={styles.statusHint}>Open to sharing what you know.</Text>
               </View>
             </View>
             <View style={styles.statusRow}>
               <View style={[styles.dot, { backgroundColor: '#EAB308' }]} />
               <View style={styles.statusInfo}>
                 <Text style={styles.statusLabel}>Need Guidance</Text>
-                <Text style={styles.statusHint}>Looking for tips, a spot, or a partner</Text>
+                <Text style={styles.statusHint}>Here to learn, or just need a hand.</Text>
               </View>
             </View>
             <View style={styles.statusRow}>
               <View style={[styles.dot, { backgroundColor: '#3B82F6' }]} />
               <View style={styles.statusInfo}>
                 <Text style={styles.statusLabel}>Just Training</Text>
-                <Text style={styles.statusHint}>Focused session — prefer no interruptions</Text>
+                <Text style={styles.statusHint}>Heads down. Here for the work.</Text>
               </View>
             </View>
           </View>
@@ -66,22 +66,22 @@ export default function HowItWorksScreen() {
           <Text style={styles.cardIcon}>💬</Text>
           <Text style={styles.cardTitle}>Connect naturally</Text>
           <Text style={styles.cardBody}>
-            Send one short intro message before approaching. No group chats. No pressure. Just a friendly first step.
+            Send a short intro before walking over. One message. No pressure.
           </Text>
         </View>
 
         <View style={styles.safetyNote}>
           <Text style={styles.safetyNoteText}>
-            Your profile is only visible when you're checked in. Check out anytime to go private.
+            Only visible while you're here. Leave anytime.
           </Text>
         </View>
 
         <TouchableOpacity
           style={styles.button}
-          onPress={completeOnboarding}
+          onPress={() => router.push('/(onboarding)/ready')}
           activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>Create Account</Text>
+          <Text style={styles.buttonText}>Continue</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

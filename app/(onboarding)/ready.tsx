@@ -1,34 +1,37 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-export default function OnboardingWelcomeScreen() {
+async function completeOnboarding() {
+  await AsyncStorage.setItem('spottr_onboarding_seen', 'true')
+  router.replace('/(auth)')
+}
+
+export default function ReadyScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
 
-        <View style={styles.brand}>
-          <Text style={styles.logo}>SPOTTR</Text>
-          <Text style={styles.headline}>
-            Real people.{'\n'}Real gyms.{'\n'}Real connections.
-          </Text>
-          <Text style={styles.body}>
-            No awkward timing. No pressure. Just real people at the same gym.
+        <View style={styles.message}>
+          <Text style={styles.set}>You're set.</Text>
+          <Text style={styles.reason}>
+            Now go be someone's reason to stay.
           </Text>
         </View>
 
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push('/(onboarding)/how-it-works')}
+            onPress={completeOnboarding}
             activeOpacity={0.85}
           >
-            <Text style={styles.buttonText}>Get Started</Text>
+            <Text style={styles.buttonText}>I'm Ready</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.signInLink}
-            onPress={() => router.replace('/(auth)')}
+            onPress={completeOnboarding}
             activeOpacity={0.6}
           >
             <Text style={styles.signInLinkText}>
@@ -46,28 +49,23 @@ export default function OnboardingWelcomeScreen() {
 const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: '#111111' },
   container: { flex: 1, padding: 28, justifyContent: 'space-between' },
-  brand: {
+  message: {
     flex: 1,
     justifyContent: 'center',
-    paddingBottom: 40,
-    gap: 20,
+    paddingBottom: 48,
+    gap: 16,
   },
-  logo: {
-    fontSize: 36,
+  set: {
+    fontSize: 44,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 6,
+    letterSpacing: -0.5,
   },
-  headline: {
-    fontSize: 38,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 46,
-  },
-  body: {
-    fontSize: 16,
+  reason: {
+    fontSize: 24,
+    fontWeight: '500',
     color: '#666666',
-    lineHeight: 24,
+    lineHeight: 32,
   },
   actions: {
     gap: 16,
