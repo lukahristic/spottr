@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -38,6 +38,13 @@ export default function CheckInScreen() {
   const [goal, setGoal]       = useState<Goal | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const savedName = user?.user_metadata?.name
+      if (savedName) setName(savedName)
+    })
+  }, [])
 
   const canCheckIn = name.trim().length > 0 && status !== null && goal !== null
 
