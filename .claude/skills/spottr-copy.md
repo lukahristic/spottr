@@ -25,6 +25,10 @@ machine, not a corporate app, not a dating platform.
 - Corporate: "Optimize your network"
 - Pushy: "Don't miss out" "Act now"
 - Playful to the point of unserious
+- Never use the word "awkward" — it puts a 
+  negative feeling in the user's mind on first 
+  impression. Find a replacement that focuses 
+  on the positive.
 
 ## Copy Rules by Type
 

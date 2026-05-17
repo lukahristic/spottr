@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "spottr",
+    "name": "Spottr",
     "slug": "spottr",
     "scheme": "spottr",
     "version": "1.0.0",
@@ -17,10 +17,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#111111"
       },
       "predictiveBackGestureEnabled": false
     },

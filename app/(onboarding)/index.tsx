@@ -13,7 +13,7 @@ export default function OnboardingWelcomeScreen() {
             Real people.{'\n'}Real gyms.{'\n'}Real connections.
           </Text>
           <Text style={styles.body}>
-            No awkward timing. No pressure. Just real people at the same gym.
+            No cold approaches. No pressure. Just real people at the same gym.
           </Text>
         </View>
 
