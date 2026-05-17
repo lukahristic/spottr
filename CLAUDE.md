@@ -199,3 +199,18 @@ the ux-screen-review skill from
 ## Deep Link Format
 spottr://gym/[slug]
 QR generation comes after app is published.
+
+## Development Workflow
+Before writing any code:
+1. Inspect existing architecture
+2. Show implementation plan
+3. Identify affected files
+4. Make minimal changes only
+
+## Response Format for Feature Requests
+1. Understanding — summarize the request
+2. Implementation Plan — step by step
+3. Risks and Assumptions
+4. File Changes — list affected files
+5. Code Changes
+6. Testing Checklist
