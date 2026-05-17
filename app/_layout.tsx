@@ -43,7 +43,9 @@ export default function RootLayout() {
     }
 
     if (!session && !inAuth && !inOnboarding) {
-      router.replace(onboardingDone ? '/(auth)' : '/(onboarding)')
+      AsyncStorage.getItem('spottr_onboarding_seen').then((seen) => {
+        router.replace(seen === 'true' ? '/(auth)' : '/(onboarding)')
+      })
     }
   }, [session, initializing, onboardingDone, segments])
 

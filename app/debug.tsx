@@ -29,7 +29,6 @@ export default function DebugScreen() {
     if (resetting) return
     setResetting(true)
     await AsyncStorage.removeItem('spottr_onboarding_seen')
-    router.replace('/(onboarding)')
     await supabase.auth.signOut()
   }
 
