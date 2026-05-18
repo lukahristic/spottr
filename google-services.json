@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "951137101205",
+    "project_id": "spottr-3174d",
+    "storage_bucket": "spottr-3174d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:951137101205:android:2e9a711e2e18d9f88e429c",
+        "android_client_info": {
+          "package_name": "com.spottr.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWD4w68Zcf0F0Ztbjyg3Cdx_G71lagHzw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
