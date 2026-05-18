@@ -36,6 +36,8 @@ export async function registerForPushNotificationsAsync(): Promise<void> {
     console.log('[PushToken] after request:', finalStatus)
   }
 
+  Alert.alert('Permission', finalStatus) // DEBUG — remove after confirming
+
   if (finalStatus !== 'granted') {
     console.log('[PushToken] permission denied — aborting')
     return
@@ -57,6 +59,7 @@ export async function registerForPushNotificationsAsync(): Promise<void> {
     Alert.alert('Token', token) // DEBUG — remove after confirming
   } catch (err) {
     console.log('[PushToken] getExpoPushTokenAsync failed:', String(err))
+    Alert.alert('Token Error', String(err)) // DEBUG — remove after confirming
     return
   }
 
