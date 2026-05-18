@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -58,13 +58,57 @@ export default function ConversationScreen() {
   const threadRef      = useRef<Thread | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     async function boot() {
       const { data: { user } } = await supabase.auth.getUser()
+      if (cancelled) return
       setCurrentUser(user)
       currentUserRef.current = user
       if (user) await loadAll(user.id)
     }
+
     boot()
+
+    const msgChannel = supabase
+      .channel('messages-thread-' + threadId)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` },
+        (payload) => {
+          if (cancelled) return
+          const incoming = payload.new as Message
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === incoming.id)) return prev
+            return [...prev, incoming]
+          })
+          const user = currentUserRef.current
+          const t    = threadRef.current
+          if (user && t) markRead(user.id, t)
+          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)
+        }
+      )
+      .subscribe()
+
+    const threadChannel = supabase
+      .channel('thread-update-' + threadId)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` },
+        (payload) => {
+          if (cancelled) return
+          const updated = payload.new as Thread
+          setThread(updated)
+          threadRef.current = updated
+        }
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(msgChannel)
+      supabase.removeChannel(threadChannel)
+    }
   }, [threadId])
 
   async function loadAll(userId: string) {
@@ -88,7 +132,6 @@ export default function ConversationScreen() {
     if (!otherId) {
       // Other user was deleted
       setLoading(false)
-      subscribeToMessages(userId, threadData as Thread)
       return
     }
 
@@ -129,42 +172,6 @@ export default function ConversationScreen() {
 
     // Mark thread as read
     markRead(userId, threadData as Thread)
-
-    // Subscribe to realtime updates
-    subscribeToMessages(userId, threadData as Thread)
-  }
-
-  function subscribeToMessages(userId: string, t: Thread) {
-    const msgChannel = supabase
-      .channel(`messages:${threadId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` },
-        (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message])
-          markRead(userId, threadRef.current ?? t)
-          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)
-        }
-      )
-      .subscribe()
-
-    const threadChannel = supabase
-      .channel(`thread:${threadId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` },
-        (payload) => {
-          const updated = payload.new as Thread
-          setThread(updated)
-          threadRef.current = updated
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(msgChannel)
-      supabase.removeChannel(threadChannel)
-    }
   }
 
   async function markRead(userId: string, t: Thread) {
@@ -180,11 +187,34 @@ export default function ConversationScreen() {
     setSending(true)
     setError(null)
 
-    const { error: dbError } = await supabase.from('messages').insert({
+    console.log('[handleReply] insert attempt', {
       thread_id:    thread.id,
       sender_id:    currentUser.id,
-      body:         replyText.trim(),
       message_type: 'reply',
+      thread_user_1: thread.user_1,
+      thread_user_2: thread.user_2,
+      unlocked_at:   thread.unlocked_at,
+    })
+
+    const { data: insertedMsg, error: dbError } = await supabase
+      .from('messages')
+      .insert({
+        thread_id:    thread.id,
+        sender_id:    currentUser.id,
+        body:         replyText.trim(),
+        message_type: 'reply',
+      })
+      .select('id')
+      .single()
+
+    console.log('[handleReply] result', {
+      insertedMsg,
+      error: dbError ? {
+        message: dbError.message,
+        code:    dbError.code,
+        details: dbError.details,
+        hint:    dbError.hint,
+      } : null,
     })
 
     setSending(false)

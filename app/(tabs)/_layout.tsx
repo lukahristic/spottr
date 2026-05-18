@@ -1,63 +1,160 @@
+import { useEffect, useRef } from 'react'
 import { Tabs } from 'expo-router'
-import { Text } from 'react-native'
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 
-const BG = '#111111'
-const ACTIVE = '#FFFFFF'
+const ACCENT   = '#FFD54A'
 const INACTIVE = '#555555'
 
-function TabIcon({ label, active }: { label: string; active: boolean }) {
+const TABS: { name: string; label: string; icon: string }[] = [
+  { name: 'index',   label: 'Check In', icon: '📍' },
+  { name: 'live',    label: 'Live',     icon: '⚡' },
+  { name: 'profile', label: 'Profile',  icon: '👤' },
+]
+
+function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets()
+
+  // One Animated.Value per tab drives icon scale — subtle pulse on focus
+  const scales = useRef(TABS.map((_, i) => new Animated.Value(i === state.index ? 1 : 0.85))).current
+
+  useEffect(() => {
+    scales.forEach((anim, i) => {
+      Animated.spring(anim, {
+        toValue: i === state.index ? 1 : 0.85,
+        useNativeDriver: true,
+        tension: 160,
+        friction: 11,
+      }).start()
+    })
+  }, [state.index])
+
+  // Bottom of the pill must clear the system gesture bar (insets.bottom)
+  // plus a comfortable visual gap (16px)
+  const pillBottom = insets.bottom + 16
+
   return (
-    <Text style={{ fontSize: 20 }}>{label}</Text>
+    <View
+      pointerEvents="box-none"
+      style={[styles.wrapper, { paddingBottom: pillBottom }]}
+    >
+      <View style={styles.pill}>
+        {state.routes.map((route, index) => {
+          const isFocused = state.index === index
+          const tab = TABS.find(t => t.name === route.name) ?? TABS[index]
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            })
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name)
+            }
+          }
+
+          return (
+            <TouchableOpacity
+              key={route.key}
+              style={styles.tab}
+              onPress={onPress}
+              activeOpacity={0.75}
+            >
+              <Animated.Text
+                style={[
+                  styles.icon,
+                  { transform: [{ scale: scales[index] }] },
+                ]}
+              >
+                {tab.icon}
+              </Animated.Text>
+
+              <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]}>
+                {tab.label}
+              </Text>
+
+              {/* Thin indicator line — fades in/out */}
+              <View
+                style={[
+                  styles.indicator,
+                  { backgroundColor: isFocused ? ACCENT : 'transparent' },
+                ]}
+              />
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+    </View>
   )
 }
 
 export default function TabLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: BG,
-          borderTopColor: '#222222',
-          height: 64,
-          paddingBottom: 10,
-        },
-        tabBarActiveTintColor: ACTIVE,
-        tabBarInactiveTintColor: INACTIVE,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          letterSpacing: 0.5,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Check In',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="📍" active={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="live"
-        options={{
-          title: 'Live',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="⚡" active={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="👤" active={focused} />
-          ),
-        }}
-      />
-    </Tabs>
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
+    />
   )
 }
+
+const styles = StyleSheet.create({
+  // Wrapper sits below screen content in normal document flow.
+  // No position:absolute — so screen content never hides under the bar.
+  // Background matches app so there's no colour gap beneath the pill.
+  wrapper: {
+    backgroundColor: '#111111',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+
+  pill: {
+    flexDirection: 'row',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    // iOS shadow
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    // Android elevation
+    elevation: 20,
+  },
+
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 2,
+    gap: 3,
+  },
+
+  icon: {
+    fontSize: 22,
+  },
+
+  label: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+
+  // 20×2 pill under the active tab label
+  indicator: {
+    width: 20,
+    height: 2,
+    borderRadius: 1,
+    marginTop: 1,
+  },
+})
