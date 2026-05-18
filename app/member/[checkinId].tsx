@@ -25,25 +25,11 @@ type CheckIn = {
   is_active: boolean
 }
 
-type SentMessage = {
-  id: string
-  text: string
-}
-
 const STATUS_META: Record<string, { label: string; color: string }> = {
   happy_to_help: { label: 'Happy to Help', color: '#22C55E' },
   need_guidance:  { label: 'Need Guidance',  color: '#EAB308' },
   just_training:  { label: 'Just Training',  color: '#3B82F6' },
 }
-
-const SENT_LINES = [
-  "Intro sent. Give it time — there's no need to rush.",
-  "Message sent. Let the moment unfold naturally.",
-  "Intro sent. The next step is theirs.",
-  "Message sent. No need to force what comes next.",
-  "Intro sent. If the connection feels right, it'll happen.",
-  "Message sent. Sometimes the best connections start quietly.",
-]
 
 const REPORT_REASONS = [
   'Something felt off',
@@ -55,16 +41,13 @@ const REPORT_REASONS = [
 export default function MemberScreen() {
   const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
 
-  const [checkin, setCheckin]         = useState<CheckIn | null>(null)
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [alreadySent, setAlreadySent] = useState(false)
-  const [sentMessage, setSentMessage] = useState<SentMessage | null>(null)
-  const [loading, setLoading]         = useState(true)
-  const [sentLine]                    = useState(() => SENT_LINES[Math.floor(Math.random() * SENT_LINES.length)])
-  const [text, setText]               = useState('')
-  const [sending, setSending]         = useState(false)
-  const [error, setError]             = useState<string | null>(null)
-  const [success, setSuccess]         = useState(false)
+  const [checkin, setCheckin]               = useState<CheckIn | null>(null)
+  const [currentUser, setCurrentUser]       = useState<User | null>(null)
+  const [existingThreadId, setExistingThreadId] = useState<string | null>(null)
+  const [loading, setLoading]               = useState(true)
+  const [text, setText]                     = useState('')
+  const [sending, setSending]               = useState(false)
+  const [error, setError]                   = useState<string | null>(null)
 
   // Safety
   const [isBlocked, setIsBlocked]           = useState(false)
@@ -87,12 +70,15 @@ export default function MemberScreen() {
       setCurrentUser(user)
 
       if (user && checkinData) {
-        const [{ data: existing }, { data: existingBlock }] = await Promise.all([
+        // Normalize user pair (PostgreSQL CHECK constraint requires user_1 < user_2)
+        const [u1, u2] = [user.id, checkinData.user_id].sort()
+
+        const [{ data: existingThread }, { data: existingBlock }] = await Promise.all([
           supabase
-            .from('messages')
-            .select('id, text')
-            .eq('sender_id', user.id)
-            .eq('checkin_id', checkinId)
+            .from('threads')
+            .select('id')
+            .eq('user_1', u1)
+            .eq('user_2', u2)
             .maybeSingle(),
           supabase
             .from('blocks')
@@ -102,11 +88,8 @@ export default function MemberScreen() {
             .maybeSingle(),
         ])
 
-        if (existing) {
-          setAlreadySent(true)
-          setSentMessage(existing as SentMessage)
-        }
-        if (existingBlock) setIsBlocked(true)
+        if (existingThread) setExistingThreadId(existingThread.id)
+        if (existingBlock)  setIsBlocked(true)
       }
 
       setLoading(false)
@@ -120,9 +103,10 @@ export default function MemberScreen() {
     setSending(true)
     setError(null)
 
+    // Verify sender is still checked in
     const { data: senderCheckin } = await supabase
       .from('checkins')
-      .select('status')
+      .select('id')
       .eq('user_id', currentUser.id)
       .eq('is_active', true)
       .maybeSingle()
@@ -133,27 +117,56 @@ export default function MemberScreen() {
       return
     }
 
-    const { error: dbError } = await supabase.from('messages').insert({
-      sender_id:     currentUser.id,
-      receiver_id:   checkin.user_id,
-      checkin_id:    checkin.id,
-      sender_name:   currentUser.user_metadata?.name ?? 'Unknown',
-      sender_status: senderCheckin.status,
-      text:          text.trim(),
+    const [u1, u2] = [currentUser.id, checkin.user_id].sort()
+
+    // Check for existing thread one more time (race condition guard)
+    const { data: existingThread } = await supabase
+      .from('threads')
+      .select('id')
+      .eq('user_1', u1)
+      .eq('user_2', u2)
+      .maybeSingle()
+
+    if (existingThread) {
+      setSending(false)
+      router.replace(`/conversation/${existingThread.id}`)
+      return
+    }
+
+    // Create new thread
+    const { data: thread, error: threadError } = await supabase
+      .from('threads')
+      .insert({
+        user_1:            u1,
+        user_2:            u2,
+        initiated_by:      currentUser.id,
+        origin_checkin_id: checkin.id,
+      })
+      .select('id')
+      .single()
+
+    if (threadError || !thread) {
+      setError('Something went wrong. Try again.')
+      setSending(false)
+      return
+    }
+
+    // Insert intro message
+    const { error: msgError } = await supabase.from('messages').insert({
+      thread_id:    thread.id,
+      sender_id:    currentUser.id,
+      body:         text.trim(),
+      message_type: 'intro',
     })
 
     setSending(false)
 
-    if (dbError) {
-      setError(
-        dbError.code === '23505'
-          ? "You've already reached out during this check-in."
-          : 'Something went wrong. Try again.'
-      )
+    if (msgError) {
+      setError('Something went wrong. Try again.')
       return
     }
 
-    setSuccess(true)
+    router.replace(`/conversation/${thread.id}`)
   }
 
   function handleBlock() {
@@ -254,12 +267,12 @@ export default function MemberScreen() {
     )
   }
 
-  const meta              = STATUS_META[checkin.status]
-  const isOwnCard         = checkin.user_id === currentUser?.id
-  const isInactive        = !checkin.is_active
-  const showForm          = !isOwnCard && !isInactive && !alreadySent && !success && !isBlocked
-  const showSafety        = !isOwnCard && !isInactive
-  const displayedSentText = success ? text.trim() : sentMessage?.text ?? ''
+  const meta       = STATUS_META[checkin.status]
+  const isOwnCard  = checkin.user_id === currentUser?.id
+  const isInactive = !checkin.is_active
+  const hasThread  = !!existingThreadId
+  const showForm   = !isOwnCard && !isInactive && !hasThread && !isBlocked
+  const showSafety = !isOwnCard && !isInactive
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -300,22 +313,19 @@ export default function MemberScreen() {
             <Text style={styles.stateTitle}>You've blocked this person.</Text>
           )}
 
-          {!isBlocked && (alreadySent || success) && (
-            <View style={styles.sentBox}>
-              <Text style={styles.sentLabel}>YOUR INTRO</Text>
-              <View style={styles.messageBubble}>
-                <Text style={styles.messageBubbleText}>{displayedSentText}</Text>
-              </View>
-              <Text style={styles.sentNotice}>{sentLine}</Text>
-              <Text style={styles.nextStepHint}>
-                If they reply, you'll see it in your Profile tab.
+          {/* Existing thread — view conversation */}
+          {!isBlocked && hasThread && (
+            <View style={styles.threadBox}>
+              <Text style={styles.threadBoxLabel}>YOU'VE ALREADY REACHED OUT</Text>
+              <Text style={styles.threadBoxHint}>
+                Your conversation is waiting.
               </Text>
               <TouchableOpacity
-                style={styles.backToLiveBtn}
-                onPress={() => router.replace('/(tabs)/live')}
+                style={styles.viewConvoBtn}
+                onPress={() => router.replace(`/conversation/${existingThreadId}`)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.backToLiveBtnText}>Back to Live</Text>
+                <Text style={styles.viewConvoBtnText}>View Conversation</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -323,9 +333,9 @@ export default function MemberScreen() {
           {/* Message form */}
           {showForm && (
             <View style={styles.form}>
-              <Text style={styles.formLabel}>Send an intro message</Text>
+              <Text style={styles.formLabel}>Send an intro</Text>
               <Text style={styles.formHint}>
-                Keep it friendly. One message per check-in.
+                One message to break the ice. Keep it friendly.
               </Text>
 
               <View style={styles.inputWrapper}>
@@ -356,7 +366,7 @@ export default function MemberScreen() {
               >
                 {sending
                   ? <ActivityIndicator color="#111111" />
-                  : <Text style={styles.sendButtonText}>Send Message</Text>
+                  : <Text style={styles.sendButtonText}>Send Intro</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -490,51 +500,24 @@ const styles = StyleSheet.create({
   memberGoal:  { fontSize: 15, color: '#888888' },
   divider:     { height: 1, backgroundColor: '#2A2A2A', marginVertical: 28 },
   stateTitle:  { fontSize: 16, fontWeight: '500', color: '#666666' },
-  sentBox: { gap: 20 },
-  sentLabel: {
+
+  threadBox: { gap: 16 },
+  threadBoxLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: '#444444',
     letterSpacing: 1,
   },
-  messageBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#1A2A1A',
-    borderRadius: 16,
-    borderBottomRightRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    maxWidth: '88%',
-  },
-  messageBubbleText: {
-    fontSize: 15,
-    color: '#CCCCCC',
-    lineHeight: 22,
-  },
-  sentNotice: {
-    fontSize: 16,
-    color: '#555555',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  nextStepHint: {
-    fontSize: 13,
-    color: '#3A3A3A',
-    textAlign: 'center',
-  },
-  backToLiveBtn: {
+  threadBoxHint: { fontSize: 15, color: '#555555' },
+  viewConvoBtn: {
     borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderColor: '#FFFFFF30',
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 4,
   },
-  backToLiveBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#666666',
-  },
+  viewConvoBtnText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+
   form:      { gap: 8 },
   formLabel: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', marginBottom: 2 },
   formHint:  { fontSize: 13, color: '#666666', marginBottom: 12 },
@@ -565,7 +548,6 @@ const styles = StyleSheet.create({
   sendButtonDisabled: { backgroundColor: '#2A2A2A' },
   sendButtonText: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: 0.3 },
 
-  // Safety
   safetyLinks: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -578,10 +560,7 @@ const styles = StyleSheet.create({
   },
   safetyLink:    { fontSize: 13, color: '#3A3A3A' },
   safetyDivider: { fontSize: 13, color: '#2A2A2A' },
-  safetyState: {
-    marginTop: 40,
-    gap: 8,
-  },
+  safetyState: { marginTop: 40, gap: 8 },
   safetyStateTitle: { fontSize: 16, fontWeight: '600', color: '#555555' },
   safetyStateBody:  { fontSize: 13, color: '#3A3A3A', lineHeight: 20 },
   reportForm: {
@@ -599,10 +578,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
-  reasonCardSelected: {
-    borderColor: '#FFFFFF',
-    backgroundColor: '#FFFFFF0D',
-  },
+  reasonCardSelected: { borderColor: '#FFFFFF', backgroundColor: '#FFFFFF0D' },
   reasonText:         { fontSize: 14, color: '#555555' },
   reasonTextSelected: { color: '#FFFFFF', fontWeight: '500' },
   reportNoteWrapper: {
@@ -627,7 +603,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   reportSubmitDisabled: { backgroundColor: '#2A2A2A' },
-  reportSubmitText: { fontSize: 15, fontWeight: '700', color: '#111111' },
-  cancelReport:     { alignItems: 'center', paddingVertical: 10 },
-  cancelReportText: { fontSize: 14, color: '#3A3A3A' },
+  reportSubmitText:     { fontSize: 15, fontWeight: '700', color: '#111111' },
+  cancelReport:         { alignItems: 'center', paddingVertical: 10 },
+  cancelReportText:     { fontSize: 14, color: '#3A3A3A' },
 })
