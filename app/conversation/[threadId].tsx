@@ -89,16 +89,18 @@ export default function ConversationScreen() {
     boot()
   }, [threadId])
 
-  // Subscription — re-establishes every time the screen is focused so
-  // Android back-navigation or tab switches don't leave a dead channel.
+  // Subscription — re-establishes every time the screen is focused.
+  // Uses a deferred cleanup closure to avoid the async race where the
+  // blur fires while auth.getUser() is still pending, leaving channels
+  // array empty and no subscription ever created.
   useFocusEffect(
     useCallback(() => {
-      let active = true
-      const channels: ReturnType<typeof supabase.channel>[] = []
+      let blurred = false
+      let cleanup: (() => void) | null = null
 
       async function subscribe() {
         const { data: { user } } = await supabase.auth.getUser()
-        if (!active || !user) return
+        if (blurred || !user) return
 
         console.log('[Conv] subscribing realtime for thread:', threadId)
 
@@ -108,7 +110,6 @@ export default function ConversationScreen() {
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` },
             (payload) => {
-              if (!active) return
               const incoming = payload.new as Message
               console.log('[RT] message received:', incoming.id)
               setMessages((prev) => {
@@ -124,8 +125,6 @@ export default function ConversationScreen() {
           .subscribe((status, err) => {
             console.log('[RT] messages channel:', status, err ? String(err) : '')
           })
-        if (!active) { supabase.removeChannel(msgCh); return }
-        channels.push(msgCh)
 
         const threadCh = supabase
           .channel('thread-update-' + threadId)
@@ -133,7 +132,6 @@ export default function ConversationScreen() {
             'postgres_changes',
             { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` },
             (payload) => {
-              if (!active) return
               const updated = payload.new as Thread
               setThread(updated)
               threadRef.current = updated
@@ -142,16 +140,26 @@ export default function ConversationScreen() {
           .subscribe((status, err) => {
             console.log('[RT] thread channel:', status, err ? String(err) : '')
           })
-        if (!active) { supabase.removeChannel(threadCh); return }
-        channels.push(threadCh)
+
+        // If blur fired while channels were being created, remove them immediately.
+        if (blurred) {
+          supabase.removeChannel(msgCh)
+          supabase.removeChannel(threadCh)
+          return
+        }
+
+        cleanup = () => {
+          console.log('[Conv] blur: removing channels for thread:', threadId)
+          supabase.removeChannel(msgCh)
+          supabase.removeChannel(threadCh)
+        }
       }
 
       subscribe()
 
       return () => {
-        active = false
-        console.log('[Conv] blur: removing', channels.length, 'channel(s)')
-        channels.forEach((ch) => supabase.removeChannel(ch))
+        blurred = true
+        cleanup?.()
       }
     }, [threadId])
   )
