@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
@@ -40,7 +41,9 @@ export default function LiveListScreen() {
   const [checkins, setCheckins]           = useState<CheckIn[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [gymName, setGymName]             = useState<string | null>(null)
+  const [isCheckedIn, setIsCheckedIn]     = useState(false)
   const [loading, setLoading]             = useState(true)
+  const [refreshing, setRefreshing]       = useState(false)
   const [error, setError]                 = useState<string | null>(null)
   const [blockedIds, setBlockedIds]       = useState<Set<string>>(new Set())
 
@@ -50,65 +53,73 @@ export default function LiveListScreen() {
     })
   }, [])
 
+  async function fetchCheckins(): Promise<string | null> {
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+    await supabase
+      .from('checkins')
+      .update({ is_active: false })
+      .eq('is_active', true)
+      .lt('checked_in_at', threeHoursAgo)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    const { data: myCheckin } = await supabase
+      .from('checkins')
+      .select('gym_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (!myCheckin?.gym_id) {
+      setIsCheckedIn(false)
+      setCheckins([])
+      setGymName(null)
+      return null
+    }
+
+    setIsCheckedIn(true)
+    const gymId = myCheckin.gym_id
+
+    const { data: gymData } = await supabase
+      .from('gyms')
+      .select('name')
+      .eq('id', gymId)
+      .maybeSingle()
+
+    setGymName(gymData?.name ?? null)
+
+    const { data, error: dbError } = await supabase
+      .from('checkins')
+      .select('*')
+      .eq('is_active', true)
+      .eq('gym_id', gymId)
+      .order('checked_in_at', { ascending: false })
+
+    if (dbError) {
+      setError('Could not load check-ins.')
+      return gymId
+    }
+
+    setError(null)
+    setCheckins(data as CheckIn[])
+    return gymId
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    await fetchCheckins()
+    setRefreshing(false)
+  }
+
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null
 
-    async function fetchCheckins() {
-      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
-      await supabase
-        .from('checkins')
-        .update({ is_active: false })
-        .eq('is_active', true)
-        .lt('checked_in_at', threeHoursAgo)
-
-      // Get current user's active checkin to determine their gym
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setLoading(false)
-        return
-      }
-
-      const { data: myCheckin } = await supabase
-        .from('checkins')
-        .select('gym_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .maybeSingle()
-
-      if (!myCheckin?.gym_id) {
-        setCheckins([])
-        setLoading(false)
-        return
-      }
-
-      const gymId = myCheckin.gym_id
-
-      // Fetch gym name
-      const { data: gymData } = await supabase
-        .from('gyms')
-        .select('name')
-        .eq('id', gymId)
-        .maybeSingle()
-
-      setGymName(gymData?.name ?? null)
-
-      const { data, error: dbError } = await supabase
-        .from('checkins')
-        .select('*')
-        .eq('is_active', true)
-        .eq('gym_id', gymId)
-        .order('checked_in_at', { ascending: false })
-
+    async function init() {
+      const gymId = await fetchCheckins()
       setLoading(false)
+      if (!gymId) return
 
-      if (dbError) {
-        setError('Could not load check-ins.')
-        return
-      }
-
-      setCheckins(data as CheckIn[])
-
-      // Realtime: only listen for this gym
       channel = supabase
         .channel(`checkins-live-${gymId}-${Date.now()}`)
         .on(
@@ -131,7 +142,7 @@ export default function LiveListScreen() {
         .subscribe()
     }
 
-    fetchCheckins()
+    init()
 
     return () => {
       if (channel) supabase.removeChannel(channel)
@@ -171,7 +182,7 @@ export default function LiveListScreen() {
   }
 
   const visibleCheckins = checkins.filter(
-    (c) => !c.user_id || !blockedIds.has(c.user_id)
+    (c) => c.user_id && c.user_id !== currentUserId && !blockedIds.has(c.user_id)
   )
 
   return (
@@ -180,50 +191,61 @@ export default function LiveListScreen() {
         data={visibleCheckins}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FFFFFF"
+          />
+        }
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.heading}>Live</Text>
             <Text style={styles.subheading}>
-              {gymName ? `Members at ${gymName} right now.` : 'Members at your gym right now.'}
+              {gymName ? `Members at ${gymName} right now.` : 'Check in to see who\'s here.'}
             </Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>⚡</Text>
-            <Text style={styles.emptyText}>No one checked in yet.</Text>
-            <Text style={styles.emptyHint}>Check in first to see who's here.</Text>
+            {isCheckedIn ? (
+              <>
+                <Text style={styles.emptyText}>You're the only one here.</Text>
+                <Text style={styles.emptyHint}>Nobody else has checked in yet.</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyText}>Not checked in.</Text>
+                <Text style={styles.emptyHint}>Check in first to see who's here.</Text>
+              </>
+            )}
           </View>
         }
         renderItem={({ item }) => {
-          const meta     = STATUS_META[item.status]
-          const isOwn    = item.user_id !== null && item.user_id === currentUserId
-          const tappable = !isOwn && item.user_id !== null
-          const time     = relativeTime(item.checked_in_at)
+          const meta = STATUS_META[item.status]
+          const time = relativeTime(item.checked_in_at)
 
           return (
             <TouchableOpacity
               style={styles.card}
-              onPress={() => tappable && router.push(`/member/${item.id}`)}
-              activeOpacity={tappable ? 0.7 : 1}
-              disabled={!tappable}
+              onPress={() => item.user_id && router.push(`/member/${item.id}`)}
+              activeOpacity={0.7}
             >
               <View style={[styles.dot, { backgroundColor: meta.color }]} />
               <View style={styles.cardBody}>
                 <View style={styles.cardNameRow}>
                   <Text style={styles.cardName}>{item.name}</Text>
-                  {isOwn && <Text style={styles.youLabel}>You</Text>}
+                  <Text style={[styles.cardStatus, { color: meta.color }]}>
+                    {meta.label}
+                  </Text>
                 </View>
-                <Text style={styles.cardGoal}>{item.goal}</Text>
-                <Text style={[styles.cardTime, time.warn && styles.cardTimeWarn]}>
-                  {time.label}
-                </Text>
-              </View>
-              <View style={[styles.badge, { borderColor: `${meta.color}60` }]}>
-                <Text style={[styles.badgeText, { color: meta.color }]}>
-                  {meta.label}
-                </Text>
+                <View style={styles.cardMetaRow}>
+                  <Text style={styles.cardGoal} numberOfLines={1}>{item.goal}</Text>
+                  <Text style={[styles.cardTime, time.warn && styles.cardTimeWarn]}>
+                    {time.label}
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           )
@@ -241,8 +263,7 @@ const styles = StyleSheet.create({
   heading:    { fontSize: 32, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
   subheading: { fontSize: 15, color: '#888888' },
   error:      { fontSize: 14, color: '#EF4444', marginTop: 12 },
-  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 80 },
-  emptyIcon:  { fontSize: 40, marginBottom: 8 },
+  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 80 },
   emptyText:  { fontSize: 17, fontWeight: '600', color: '#FFFFFF' },
   emptyHint:  { fontSize: 14, color: '#555555' },
   card: {
@@ -256,20 +277,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 14,
   },
-  dot:         { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
-  cardBody:    { flex: 1, gap: 3 },
-  cardNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardName:    { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  youLabel:    { fontSize: 11, fontWeight: '600', color: '#555555', letterSpacing: 0.5 },
-  cardGoal:    { fontSize: 13, color: '#888888' },
-  cardTime:    { fontSize: 12, color: '#555555' },
-  cardTimeWarn: { color: '#EAB308' },
-  badge: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    flexShrink: 0,
-  },
-  badgeText: { fontSize: 12, fontWeight: '600' },
+  dot:           { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  cardBody:      { flex: 1, gap: 6 },
+  cardNameRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  cardName:      { fontSize: 16, fontWeight: '600', color: '#FFFFFF', flexShrink: 1 },
+  cardStatus:    { fontSize: 12, fontWeight: '600', flexShrink: 0 },
+  cardMetaRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  cardGoal:      { fontSize: 13, color: '#888888', flex: 1 },
+  cardTime:      { fontSize: 12, color: '#555555', flexShrink: 0 },
+  cardTimeWarn:  { color: '#EAB308' },
 })

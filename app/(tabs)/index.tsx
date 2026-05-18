@@ -26,10 +26,10 @@ type Gym = {
   location: string
 }
 
-const STATUSES: { key: Status; label: string; color: string; emoji: string }[] = [
-  { key: 'happy_to_help', label: 'Happy to Help', color: '#22C55E', emoji: '🟢' },
-  { key: 'need_guidance',  label: 'Need Guidance',  color: '#EAB308', emoji: '🟡' },
-  { key: 'just_training',  label: 'Just Training',  color: '#3B82F6', emoji: '🔵' },
+const STATUSES: { key: Status; label: string; color: string }[] = [
+  { key: 'happy_to_help', label: 'Happy to Help', color: '#22C55E' },
+  { key: 'need_guidance',  label: 'Need Guidance',  color: '#EAB308' },
+  { key: 'just_training',  label: 'Just Training',  color: '#3B82F6' },
 ]
 
 const GOALS: Goal[] = [
@@ -189,10 +189,9 @@ export default function CheckInScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.heading}>Check In</Text>
-          <Text style={styles.subheading}>Choose your gym to get started.</Text>
+          <Text style={styles.heading}>Your Gym</Text>
+          <Text style={styles.subheading}>Choose a gym to get started.</Text>
 
-          <Text style={styles.label}>Your Gym</Text>
 
           {gyms.length === 0 ? (
             <Text style={styles.noGyms}>No gyms available.</Text>
@@ -238,7 +237,7 @@ export default function CheckInScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>Your Name</Text>
+        <Text style={styles.label}>1 · Your Name</Text>
         <TextInput
           style={styles.input}
           placeholder="e.g. Alex"
@@ -250,7 +249,7 @@ export default function CheckInScreen() {
           editable={!loading}
         />
 
-        <Text style={styles.label}>Today's Status</Text>
+        <Text style={styles.label}>2 · Today's Status</Text>
         <View style={styles.optionGroup}>
           {STATUSES.map((s) => {
             const selected = status === s.key
@@ -265,7 +264,7 @@ export default function CheckInScreen() {
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <Text style={styles.optionEmoji}>{s.emoji}</Text>
+                <View style={[styles.optionDot, { backgroundColor: s.color }]} />
                 <Text style={[styles.optionLabel, selected && { color: s.color }]}>
                   {s.label}
                 </Text>
@@ -274,7 +273,7 @@ export default function CheckInScreen() {
           })}
         </View>
 
-        <Text style={styles.label}>Today's Goal</Text>
+        <Text style={styles.label}>3 · Today's Goal</Text>
         <View style={styles.optionGroup}>
           {GOALS.map((g) => {
             const selected = goal === g
@@ -398,7 +397,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
     backgroundColor: '#FFFFFF18',
   },
-  optionEmoji: { fontSize: 18 },
+  optionDot: { width: 10, height: 10, borderRadius: 5 },
   optionLabel: {
     fontSize: 15,
     fontWeight: '500',
@@ -422,7 +421,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonDisabled: {
-    backgroundColor: '#2A2A2A',
+    opacity: 0.3,
   },
   buttonText: {
     fontSize: 16,

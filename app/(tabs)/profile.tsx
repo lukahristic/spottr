@@ -279,35 +279,18 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
 
-        <Text style={styles.heading}>Profile</Text>
-
-        {/* Identity card */}
-        <View style={styles.identityCard}>
+        {/* Compact identity row */}
+        <View style={styles.identityRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
           <View style={styles.identityInfo}>
-            <Text style={styles.identityName}>{name}</Text>
-            <Text style={styles.identityEmail}>{email}</Text>
+            <Text style={styles.identityName} numberOfLines={1}>{name}</Text>
+            <Text style={styles.identityEmail} numberOfLines={1}>{email}</Text>
           </View>
         </View>
 
-        {/* Check Out */}
-        {activeCheckinId !== null && (
-          <TouchableOpacity
-            style={[styles.checkOutButton, checkingOut && styles.actionDisabled]}
-            onPress={handleCheckOut}
-            disabled={checkingOut}
-            activeOpacity={0.7}
-          >
-            {checkingOut
-              ? <ActivityIndicator color="#EAB308" />
-              : <Text style={styles.checkOutText}>Check Out</Text>
-            }
-          </TouchableOpacity>
-        )}
-
-        {/* Threads / Messages */}
+        {/* Threads / Messages — moved above the fold */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionLabel}>MESSAGES</Text>
           {loadingThreads && <ActivityIndicator color="#555555" size="small" />}
@@ -403,18 +386,34 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Sign Out */}
-        <TouchableOpacity
-          style={[styles.signOutButton, signingOut && styles.actionDisabled]}
-          onPress={handleSignOut}
-          disabled={signingOut}
-          activeOpacity={0.7}
-        >
-          {signingOut
-            ? <ActivityIndicator color="#EF4444" />
-            : <Text style={styles.signOutText}>Sign Out</Text>
-          }
-        </TouchableOpacity>
+        {/* Settings actions */}
+        <View style={styles.actionsGroup}>
+          {activeCheckinId !== null && (
+            <TouchableOpacity
+              style={[styles.actionButton, checkingOut && styles.actionDisabled]}
+              onPress={handleCheckOut}
+              disabled={checkingOut}
+              activeOpacity={0.7}
+            >
+              {checkingOut
+                ? <ActivityIndicator color="#CCCCCC" />
+                : <Text style={styles.actionButtonText}>Check Out</Text>
+              }
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.actionButton, signingOut && styles.actionDisabled]}
+            onPress={handleSignOut}
+            disabled={signingOut}
+            activeOpacity={0.7}
+          >
+            {signingOut
+              ? <ActivityIndicator color="#CCCCCC" />
+              : <Text style={styles.actionButtonText}>Sign Out</Text>
+            }
+          </TouchableOpacity>
+        </View>
 
         {/* Debug */}
         <TouchableOpacity
@@ -433,40 +432,25 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: '#111111' },
   scroll: { padding: 24, paddingBottom: 48 },
-  heading: { fontSize: 32, fontWeight: '700', color: '#FFFFFF', marginBottom: 24 },
-  identityCard: {
+  identityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 16,
-    padding: 20,
-    gap: 16,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 28,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#2A2A2A',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText:    { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
-  identityInfo:  { flex: 1, gap: 4 },
-  identityName:  { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
-  identityEmail: { fontSize: 14, color: '#888888' },
-  checkOutButton: {
-    borderWidth: 1,
-    borderColor: '#EAB30840',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  checkOutText: { fontSize: 15, fontWeight: '600', color: '#EAB308' },
+  avatarText:    { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  identityInfo:  { flex: 1, gap: 2 },
+  identityName:  { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  identityEmail: { fontSize: 13, color: '#666666' },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -517,14 +501,14 @@ const styles = StyleSheet.create({
   threadName: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', flex: 1 },
   threadMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   unreadBadge: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#22C55E',
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 2,
     minWidth: 20,
     alignItems: 'center',
   },
-  unreadBadgeText: { fontSize: 11, fontWeight: '700', color: '#111111' },
+  unreadBadgeText: { fontSize: 11, fontWeight: '700', color: '#0A1F0A' },
   threadTime:  { fontSize: 12, color: '#555555' },
   threadBottomRow: {
     flexDirection: 'row',
@@ -549,16 +533,16 @@ const styles = StyleSheet.create({
   blockedName: { fontSize: 14, color: '#666666' },
   unblockText: { fontSize: 13, color: '#555555' },
 
-  signOutButton: {
+  actionsGroup: { gap: 10, marginTop: 24 },
+  actionButton: {
     borderWidth: 1,
-    borderColor: '#EF444440',
+    borderColor: '#2A2A2A',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 24,
   },
-  actionDisabled: { opacity: 0.5 },
-  signOutText:    { fontSize: 16, fontWeight: '600', color: '#EF4444' },
+  actionDisabled:    { opacity: 0.5 },
+  actionButtonText:  { fontSize: 15, fontWeight: '600', color: '#CCCCCC' },
   debugLink:     { alignItems: 'center', marginTop: 32 },
   debugLinkText: { fontSize: 11, color: '#2A2A2A' },
 })
