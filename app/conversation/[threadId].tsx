@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import type { Thread, Message, UserStatus } from '../../types/messaging'
@@ -77,80 +77,84 @@ export default function ConversationScreen() {
   const threadRef      = useRef<Thread | null>(null)
   const otherIdRef     = useRef<string | null>(null)
 
+  // Data load — runs once per threadId (no subscription here)
   useEffect(() => {
-    let cancelled = false
-    // Track channels in a local array so cleanup can always find them,
-    // even if they are created asynchronously after auth resolves.
-    const channels: ReturnType<typeof supabase.channel>[] = []
-
-    async function setup() {
-      // Wait for auth.getUser() so AsyncStorage session is fully loaded
-      // before subscribing. In production APKs the JWT is not available
-      // synchronously at mount, so subscribing before this resolves sends
-      // an unauthenticated WebSocket — Supabase RLS then drops all events.
+    async function boot() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (cancelled) return
-
       console.log('[Conv] auth ready, userId:', user?.id ?? 'none')
       setCurrentUser(user)
       currentUserRef.current = user
-      if (!user) return
-
-      await loadAll(user.id)
-      if (cancelled) return
-
-      console.log('[Conv] subscribing realtime for thread:', threadId)
-
-      const msgCh = supabase
-        .channel('messages-thread-' + threadId)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` },
-          (payload) => {
-            if (cancelled) return
-            const incoming = payload.new as Message
-            console.log('[RT] message received:', incoming.id)
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === incoming.id)) return prev
-              return [...prev, incoming]
-            })
-            const u = currentUserRef.current
-            const t = threadRef.current
-            if (u && t) markRead(u.id, t)
-            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)
-          }
-        )
-        .subscribe((status, err) => {
-          console.log('[RT] messages channel:', status, err ? String(err) : '')
-        })
-      channels.push(msgCh)
-
-      const threadCh = supabase
-        .channel('thread-update-' + threadId)
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` },
-          (payload) => {
-            if (cancelled) return
-            const updated = payload.new as Thread
-            setThread(updated)
-            threadRef.current = updated
-          }
-        )
-        .subscribe((status, err) => {
-          console.log('[RT] thread channel:', status, err ? String(err) : '')
-        })
-      channels.push(threadCh)
+      if (user) await loadAll(user.id)
     }
-
-    setup()
-
-    return () => {
-      cancelled = true
-      console.log('[Conv] cleanup: removing', channels.length, 'channel(s)')
-      channels.forEach((ch) => supabase.removeChannel(ch))
-    }
+    boot()
   }, [threadId])
+
+  // Subscription — re-establishes every time the screen is focused so
+  // Android back-navigation or tab switches don't leave a dead channel.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      const channels: ReturnType<typeof supabase.channel>[] = []
+
+      async function subscribe() {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!active || !user) return
+
+        console.log('[Conv] subscribing realtime for thread:', threadId)
+
+        const msgCh = supabase
+          .channel('messages-thread-' + threadId)
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` },
+            (payload) => {
+              if (!active) return
+              const incoming = payload.new as Message
+              console.log('[RT] message received:', incoming.id)
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === incoming.id)) return prev
+                return [...prev, incoming]
+              })
+              const u = currentUserRef.current
+              const t = threadRef.current
+              if (u && t) markRead(u.id, t)
+              setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)
+            }
+          )
+          .subscribe((status, err) => {
+            console.log('[RT] messages channel:', status, err ? String(err) : '')
+          })
+        if (!active) { supabase.removeChannel(msgCh); return }
+        channels.push(msgCh)
+
+        const threadCh = supabase
+          .channel('thread-update-' + threadId)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` },
+            (payload) => {
+              if (!active) return
+              const updated = payload.new as Thread
+              setThread(updated)
+              threadRef.current = updated
+            }
+          )
+          .subscribe((status, err) => {
+            console.log('[RT] thread channel:', status, err ? String(err) : '')
+          })
+        if (!active) { supabase.removeChannel(threadCh); return }
+        channels.push(threadCh)
+      }
+
+      subscribe()
+
+      return () => {
+        active = false
+        console.log('[Conv] blur: removing', channels.length, 'channel(s)')
+        channels.forEach((ch) => supabase.removeChannel(ch))
+      }
+    }, [threadId])
+  )
 
   async function loadAll(userId: string) {
     const { data: threadData } = await supabase

@@ -55,6 +55,58 @@ export default function ProfileScreen() {
     })
   }, [])
 
+  // Realtime: patch threads in state when latest_message_at / unread counts change.
+  // Two channels needed because Supabase postgres_changes only supports one column filter.
+  useEffect(() => {
+    const userId = user?.id
+    if (!userId) return
+
+    function patchThread(updated: Thread) {
+      setThreads((prev) => {
+        const idx = prev.findIndex((t) => t.id === updated.id)
+        if (idx === -1) return prev
+        const next = [...prev]
+        next[idx] = {
+          ...next[idx],
+          ...updated,
+          unread_count: updated.user_1 === userId
+            ? updated.unread_count_user_1
+            : updated.unread_count_user_2,
+        }
+        return next.sort(
+          (a, b) => new Date(b.latest_message_at).getTime() - new Date(a.latest_message_at).getTime()
+        )
+      })
+    }
+
+    const ch1 = supabase
+      .channel('profile-threads-u1-' + userId)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'threads', filter: `user_1=eq.${userId}` },
+        (payload) => { patchThread(payload.new as Thread) }
+      )
+      .subscribe((status, err) => {
+        console.log('[Profile] threads-u1 channel:', status, err ? String(err) : '')
+      })
+
+    const ch2 = supabase
+      .channel('profile-threads-u2-' + userId)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'threads', filter: `user_2=eq.${userId}` },
+        (payload) => { patchThread(payload.new as Thread) }
+      )
+      .subscribe((status, err) => {
+        console.log('[Profile] threads-u2 channel:', status, err ? String(err) : '')
+      })
+
+    return () => {
+      supabase.removeChannel(ch1)
+      supabase.removeChannel(ch2)
+    }
+  }, [user?.id])
+
   useFocusEffect(
     useCallback(() => {
       const userId = userRef.current?.id ?? user?.id
