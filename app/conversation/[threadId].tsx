@@ -9,6 +9,9 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Alert,
+  ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -28,12 +31,18 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   just_training:  { label: 'Just Training',  color: '#3B82F6' },
 }
 
+const REPORT_REASONS = [
+  'Something felt off',
+  'Uncomfortable message',
+  'Made me uneasy',
+  'Other',
+]
+
 function formatTime(ts: string): string {
   const date = new Date(ts)
   const now   = new Date()
   const diffMs   = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
   if (diffDays === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7)   return date.toLocaleDateString([], { weekday: 'short' })
@@ -43,19 +52,30 @@ function formatTime(ts: string): string {
 export default function ConversationScreen() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>()
 
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [thread, setThread]           = useState<Thread | null>(null)
-  const [otherUser, setOtherUser]     = useState<OtherUser | null>(null)
-  const [messages, setMessages]       = useState<Message[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [isBlocked, setIsBlocked]     = useState(false)
-  const [replyText, setReplyText]     = useState('')
-  const [sending, setSending]         = useState(false)
-  const [error, setError]             = useState<string | null>(null)
+  const [currentUser, setCurrentUser]   = useState<User | null>(null)
+  const [thread, setThread]             = useState<Thread | null>(null)
+  const [otherUser, setOtherUser]       = useState<OtherUser | null>(null)
+  const [messages, setMessages]         = useState<Message[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [isBlocked, setIsBlocked]       = useState(false)
+  const [iBlockedThem, setIBlockedThem] = useState(false)
+  const [replyText, setReplyText]       = useState('')
+  const [sending, setSending]           = useState(false)
+  const [error, setError]               = useState<string | null>(null)
 
-  const flatListRef   = useRef<FlatList>(null)
+  // Safety
+  const [blocking, setBlocking]               = useState(false)
+  const [showSafetySheet, setShowSafetySheet] = useState(false)
+  const [showReportForm, setShowReportForm]   = useState(false)
+  const [reportReason, setReportReason]       = useState<string | null>(null)
+  const [reportNote, setReportNote]           = useState('')
+  const [reporting, setReporting]             = useState(false)
+  const [reportDone, setReportDone]           = useState(false)
+
+  const flatListRef    = useRef<FlatList>(null)
   const currentUserRef = useRef<User | null>(null)
   const threadRef      = useRef<Thread | null>(null)
+  const otherIdRef     = useRef<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -112,7 +132,6 @@ export default function ConversationScreen() {
   }, [threadId])
 
   async function loadAll(userId: string) {
-    // Load thread
     const { data: threadData } = await supabase
       .from('threads')
       .select('*')
@@ -128,50 +147,54 @@ export default function ConversationScreen() {
     threadRef.current = threadData as Thread
 
     const otherId = threadData.user_1 === userId ? threadData.user_2 : threadData.user_1
+    otherIdRef.current = otherId
 
     if (!otherId) {
-      // Other user was deleted
       setLoading(false)
       return
     }
 
-    // Parallel: other user info, messages, block check
-    const [{ data: checkins }, { data: msgs }, { data: blockCheck }] = await Promise.all([
-      supabase
-        .from('checkins')
-        .select('name, status, is_active')
-        .eq('user_id', otherId)
-        .order('checked_in_at', { ascending: false })
-        .limit(1),
-      supabase
-        .from('messages')
-        .select('*')
-        .eq('thread_id', threadId)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('blocks')
-        .select('id')
-        .or(
-          `and(blocker_id.eq.${userId},blocked_user_id.eq.${otherId}),` +
-          `and(blocker_id.eq.${otherId},blocked_user_id.eq.${userId})`
-        )
-        .maybeSingle(),
-    ])
+    const [{ data: checkins }, { data: msgs }, { data: myBlock }, { data: theirBlock }] =
+      await Promise.all([
+        supabase
+          .from('checkins')
+          .select('name, status, is_active')
+          .eq('user_id', otherId)
+          .order('checked_in_at', { ascending: false })
+          .limit(1),
+        supabase
+          .from('messages')
+          .select('*')
+          .eq('thread_id', threadId)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('blocks')
+          .select('id')
+          .eq('blocker_id', userId)
+          .eq('blocked_user_id', otherId)
+          .maybeSingle(),
+        supabase
+          .from('blocks')
+          .select('id')
+          .eq('blocker_id', otherId)
+          .eq('blocked_user_id', userId)
+          .maybeSingle(),
+      ])
 
     if (checkins?.[0]) {
-      setOtherUser({
-        name:     checkins[0].name,
-        status:   checkins[0].status,
-        isActive: checkins[0].is_active,
-      })
+      setOtherUser({ name: checkins[0].name, status: checkins[0].status, isActive: checkins[0].is_active })
     }
 
     setMessages((msgs as Message[]) ?? [])
-    setIsBlocked(!!blockCheck)
+    const iBlocked    = !!myBlock
+    const theyBlocked = !!theirBlock
+    setIBlockedThem(iBlocked)
+    setIsBlocked(iBlocked || theyBlocked)
     setLoading(false)
 
-    // Mark thread as read
-    markRead(userId, threadData as Thread)
+    if (!(iBlocked || theyBlocked)) {
+      markRead(userId, threadData as Thread)
+    }
   }
 
   async function markRead(userId: string, t: Thread) {
@@ -182,18 +205,96 @@ export default function ConversationScreen() {
       .eq('id', t.id)
   }
 
+  function handleBlock() {
+    const otherId = otherIdRef.current
+    if (!currentUser || !otherId || blocking) return
+    setShowSafetySheet(false)
+    const name = otherUser?.name ?? 'this person'
+    Alert.alert(
+      `Block ${name}?`,
+      "You won't see each other on the live list.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            setBlocking(true)
+            const { error: dbError } = await supabase.from('blocks').insert({
+              blocker_id:      currentUser.id,
+              blocked_user_id: otherId,
+            })
+            setBlocking(false)
+            if (dbError) {
+              Alert.alert('', 'Something went wrong. Try again.')
+              return
+            }
+            setIBlockedThem(true)
+            setIsBlocked(true)
+            router.back()
+          },
+        },
+      ]
+    )
+  }
+
+  function handleUnblock() {
+    const otherId = otherIdRef.current
+    if (!currentUser || !otherId) return
+    setShowSafetySheet(false)
+    Alert.alert(
+      'Unblock this person?',
+      "They'll be able to see you again.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          onPress: async () => {
+            const { error: dbError } = await supabase
+              .from('blocks')
+              .delete()
+              .eq('blocker_id', currentUser.id)
+              .eq('blocked_user_id', otherId)
+            if (dbError) {
+              Alert.alert('', 'Something went wrong. Try again.')
+              return
+            }
+            setIBlockedThem(false)
+            setIsBlocked(false)
+          },
+        },
+      ]
+    )
+  }
+
+  async function handleReportSubmit() {
+    const otherId = otherIdRef.current
+    if (!reportReason || reporting || !currentUser || !otherId) return
+    setReporting(true)
+    const { error: dbError } = await supabase.from('reports').insert({
+      reporter_id:      currentUser.id,
+      reported_user_id: otherId,
+      checkin_id:       threadRef.current?.origin_checkin_id ?? null,
+      reason:           reportReason,
+      note:             reportNote.trim() || null,
+    })
+    setReporting(false)
+    if (dbError) {
+      Alert.alert('', 'Something went wrong. Try again.')
+      return
+    }
+    setReportDone(true)
+  }
+
   async function handleReply() {
     if (!replyText.trim() || sending || !thread || !currentUser) return
     setSending(true)
     setError(null)
 
     console.log('[handleReply] insert attempt', {
-      thread_id:    thread.id,
-      sender_id:    currentUser.id,
-      message_type: 'reply',
-      thread_user_1: thread.user_1,
-      thread_user_2: thread.user_2,
-      unlocked_at:   thread.unlocked_at,
+      thread_id: thread.id, sender_id: currentUser.id,
+      thread_user_1: thread.user_1, thread_user_2: thread.user_2,
+      unlocked_at: thread.unlocked_at,
     })
 
     const { data: insertedMsg, error: dbError } = await supabase
@@ -209,30 +310,238 @@ export default function ConversationScreen() {
 
     console.log('[handleReply] result', {
       insertedMsg,
-      error: dbError ? {
-        message: dbError.message,
-        code:    dbError.code,
-        details: dbError.details,
-        hint:    dbError.hint,
-      } : null,
+      error: dbError
+        ? { message: dbError.message, code: dbError.code, details: dbError.details, hint: dbError.hint }
+        : null,
     })
 
     setSending(false)
-
-    if (dbError) {
-      setError('Something went wrong. Try again.')
-      return
-    }
-
+    if (dbError) { setError('Something went wrong. Try again.'); return }
     setReplyText('')
   }
 
-  // Scroll to bottom after initial load
   useEffect(() => {
     if (!loading && messages.length > 0) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100)
     }
   }, [loading])
+
+  // ─── Render helpers ────────────────────────────────────────────────────────
+
+  function renderHeader(showSafety = true) {
+    const statusMeta = otherUser?.status ? STATUS_META[otherUser.status] : null
+    return (
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerName} numberOfLines={1}>
+            {otherUser?.name ?? 'Unknown'}
+          </Text>
+          {statusMeta && otherUser?.isActive && (
+            <View style={styles.headerStatus}>
+              <View style={[styles.headerStatusDot, { backgroundColor: statusMeta.color }]} />
+              <Text style={[styles.headerStatusLabel, { color: statusMeta.color }]}>
+                {statusMeta.label}
+              </Text>
+            </View>
+          )}
+        </View>
+        {showSafety && (
+          <TouchableOpacity
+            style={styles.moreBtn}
+            onPress={() => setShowSafetySheet(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.moreBtnText}>···</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    )
+  }
+
+  function renderSafetySheet() {
+    return (
+      <Modal
+        visible={showSafetySheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSafetySheet(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSafetySheet(false)}
+        >
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+
+            {iBlockedThem ? (
+              <TouchableOpacity style={styles.sheetItem} onPress={handleUnblock} activeOpacity={0.7}>
+                <Text style={styles.sheetItemText}>Unblock</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.sheetItem} onPress={handleBlock} activeOpacity={0.7}>
+                <Text style={[styles.sheetItemText, styles.sheetItemDestructive]}>
+                  Block {otherUser?.name ?? 'this person'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.sheetItem}
+              onPress={() => {
+                setShowSafetySheet(false)
+                setTimeout(() => setShowReportForm(true), 320)
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sheetItemText}>
+                Report {otherUser?.name ?? 'this person'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.sheetDivider} />
+
+            <TouchableOpacity
+              style={styles.sheetItem}
+              onPress={() => setShowSafetySheet(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    )
+  }
+
+  function renderReportForm() {
+    return (
+      <Modal
+        visible={showReportForm}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowReportForm(false)
+          setReportDone(false)
+          setReportReason(null)
+          setReportNote('')
+        }}
+      >
+        <SafeAreaView style={styles.reportSafe}>
+          {reportDone ? (
+            <View style={styles.reportDoneWrap}>
+              <Text style={styles.reportDoneTitle}>Report received.</Text>
+              <Text style={styles.reportDoneBody}>
+                Thank you for helping keep this space safe.
+              </Text>
+              <TouchableOpacity
+                style={styles.reportDoneBtn}
+                onPress={() => {
+                  setShowReportForm(false)
+                  setReportDone(false)
+                  setReportReason(null)
+                  setReportNote('')
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.reportDoneBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.reportScroll}
+            >
+              <View style={styles.reportHeader}>
+                <Text style={styles.reportTitle}>What happened?</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowReportForm(false)
+                    setReportReason(null)
+                    setReportNote('')
+                  }}
+                  activeOpacity={0.6}
+                >
+                  <Text style={styles.reportClose}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              {REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[styles.reasonCard, reportReason === reason && styles.reasonCardSelected]}
+                  onPress={() => setReportReason(reason)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.reasonText, reportReason === reason && styles.reasonTextSelected]}>
+                    {reason}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+
+              <View style={styles.reportNoteWrapper}>
+                <TextInput
+                  style={styles.reportNoteInput}
+                  placeholder="Anything else? (optional)"
+                  placeholderTextColor="#444444"
+                  value={reportNote}
+                  onChangeText={setReportNote}
+                  multiline
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.reportSubmitBtn,
+                  (!reportReason || reporting) && styles.reportSubmitDisabled,
+                ]}
+                disabled={!reportReason || reporting}
+                onPress={handleReportSubmit}
+                activeOpacity={0.85}
+              >
+                {reporting
+                  ? <ActivityIndicator color="#111111" size="small" />
+                  : <Text style={styles.reportSubmitText}>Send Report</Text>
+                }
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
+    )
+  }
+
+  function renderMessage({ item }: { item: Message }) {
+    const isOwn   = item.sender_id === currentUser?.id
+    const isIntro = item.message_type === 'intro'
+    return (
+      <View style={[styles.bubbleWrap, isOwn ? styles.bubbleWrapOwn : styles.bubbleWrapOther]}>
+        {isIntro && (
+          <Text style={[styles.introLabel, isOwn ? styles.introLabelOwn : styles.introLabelOther]}>
+            INTRO
+          </Text>
+        )}
+        <View style={[
+          styles.bubble,
+          isOwn  ? styles.bubbleOwn  : styles.bubbleOther,
+          isIntro && (isOwn ? styles.bubbleIntroOwn : styles.bubbleIntroOther),
+        ]}>
+          <Text style={[styles.bubbleText, isOwn ? styles.bubbleTextOwn : styles.bubbleTextOther]}>
+            {item.body}
+          </Text>
+        </View>
+        <Text style={[styles.bubbleTime, isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeOther]}>
+          {formatTime(item.created_at)}
+        </Text>
+      </View>
+    )
+  }
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -260,7 +569,7 @@ export default function ConversationScreen() {
   if (!thread.user_1 || !thread.user_2) {
     return (
       <SafeAreaView style={styles.safe}>
-        {renderHeader()}
+        {renderHeader(false)}
         <View style={styles.center}>
           <Text style={styles.stateMsg}>This conversation is no longer available.</Text>
           <Text style={styles.stateMsgSub}>The other account was deleted.</Text>
@@ -272,9 +581,19 @@ export default function ConversationScreen() {
   if (isBlocked) {
     return (
       <SafeAreaView style={styles.safe}>
-        {renderHeader()}
+        {renderHeader(false)}
         <View style={styles.center}>
-          <Text style={styles.stateMsg}>This conversation is unavailable.</Text>
+          {iBlockedThem ? (
+            <>
+              <Text style={styles.stateMsg}>You've blocked this person.</Text>
+              <Text style={styles.stateMsgSub}>Unblock to continue the conversation.</Text>
+              <TouchableOpacity style={styles.unblockBtn} onPress={handleUnblock} activeOpacity={0.7}>
+                <Text style={styles.unblockBtnText}>Unblock</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.stateMsg}>This conversation is unavailable.</Text>
+          )}
         </View>
       </SafeAreaView>
     )
@@ -282,57 +601,6 @@ export default function ConversationScreen() {
 
   const isInitiator = thread.initiated_by === currentUser?.id
   const isUnlocked  = !!thread.unlocked_at
-
-  function renderHeader() {
-    const statusMeta = otherUser?.status ? STATUS_META[otherUser.status] : null
-    return (
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerName} numberOfLines={1}>
-            {otherUser?.name ?? 'Unknown'}
-          </Text>
-          {statusMeta && otherUser?.isActive && (
-            <View style={styles.headerStatus}>
-              <View style={[styles.headerStatusDot, { backgroundColor: statusMeta.color }]} />
-              <Text style={[styles.headerStatusLabel, { color: statusMeta.color }]}>
-                {statusMeta.label}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    )
-  }
-
-  function renderMessage({ item }: { item: Message }) {
-    const isOwn  = item.sender_id === currentUser?.id
-    const isIntro = item.message_type === 'intro'
-
-    return (
-      <View style={[styles.bubbleWrap, isOwn ? styles.bubbleWrapOwn : styles.bubbleWrapOther]}>
-        {isIntro && (
-          <Text style={[styles.introLabel, isOwn ? styles.introLabelOwn : styles.introLabelOther]}>
-            INTRO
-          </Text>
-        )}
-        <View style={[
-          styles.bubble,
-          isOwn  ? styles.bubbleOwn  : styles.bubbleOther,
-          isIntro && (isOwn ? styles.bubbleIntroOwn : styles.bubbleIntroOther),
-        ]}>
-          <Text style={[styles.bubbleText, isOwn ? styles.bubbleTextOwn : styles.bubbleTextOther]}>
-            {item.body}
-          </Text>
-        </View>
-        <Text style={[styles.bubbleTime, isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeOther]}>
-          {formatTime(item.created_at)}
-        </Text>
-      </View>
-    )
-  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -353,10 +621,8 @@ export default function ConversationScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
 
-        {/* Input / lock state */}
         <View style={styles.inputArea}>
           {isUnlocked ? (
-            // Both parties can reply freely
             <View style={styles.replyRow}>
               <TextInput
                 style={styles.replyInput}
@@ -380,12 +646,10 @@ export default function ConversationScreen() {
               </TouchableOpacity>
             </View>
           ) : isInitiator ? (
-            // Sender waiting for reply
             <View style={styles.lockState}>
               <Text style={styles.lockStateText}>Waiting for their reply…</Text>
             </View>
           ) : (
-            // Recipient — reply to unlock
             <View style={styles.unlockPrompt}>
               <Text style={styles.unlockPromptLabel}>Reply to start the conversation</Text>
               <View style={styles.replyRow}>
@@ -415,6 +679,9 @@ export default function ConversationScreen() {
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       </KeyboardAvoidingView>
+
+      {renderSafetySheet()}
+      {renderReportForm()}
     </SafeAreaView>
   )
 }
@@ -449,6 +716,19 @@ const styles = StyleSheet.create({
   headerStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   headerStatusDot:   { width: 7, height: 7, borderRadius: 3.5 },
   headerStatusLabel: { fontSize: 12, fontWeight: '500' },
+  moreBtn:     { paddingVertical: 4, paddingHorizontal: 2 },
+  moreBtnText: { fontSize: 22, color: '#555555', letterSpacing: 2 },
+
+  // Blocked state unblock button
+  unblockBtn: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#FFFFFF30',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+  },
+  unblockBtnText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
 
   // Messages
   messageList: { padding: 20, paddingBottom: 8, gap: 4 },
@@ -457,57 +737,25 @@ const styles = StyleSheet.create({
   bubbleWrapOwn:   { alignSelf: 'flex-end', alignItems: 'flex-end' },
   bubbleWrapOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
 
-  introLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
+  introLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
   introLabelOwn:   { color: '#3A4A3A' },
   introLabelOther: { color: '#444444' },
 
-  bubble: {
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  bubbleOwn: {
-    backgroundColor: '#1E2A1E',
-    borderBottomRightRadius: 4,
-  },
-  bubbleOther: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderBottomLeftRadius: 4,
-  },
-  bubbleIntroOwn: {
-    borderWidth: 1,
-    borderColor: '#22C55E20',
-  },
-  bubbleIntroOther: {
-    borderColor: '#333333',
-  },
+  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleOwn:   { backgroundColor: '#1E2A1E', borderBottomRightRadius: 4 },
+  bubbleOther: { backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: '#2A2A2A', borderBottomLeftRadius: 4 },
+  bubbleIntroOwn:   { borderWidth: 1, borderColor: '#22C55E20' },
+  bubbleIntroOther: { borderColor: '#333333' },
   bubbleText:      { fontSize: 15, lineHeight: 22 },
   bubbleTextOwn:   { color: '#DDDDDD' },
   bubbleTextOther: { color: '#CCCCCC' },
-
   bubbleTime:      { fontSize: 11, marginTop: 4 },
   bubbleTimeOwn:   { color: '#3A4A3A' },
   bubbleTimeOther: { color: '#444444' },
 
   // Input area
-  inputArea: {
-    borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
-    padding: 16,
-    gap: 8,
-  },
-  replyRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-  },
+  inputArea: { borderTopWidth: 1, borderTopColor: '#1A1A1A', padding: 16, gap: 8 },
+  replyRow:  { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   replyInput: {
     flex: 1,
     backgroundColor: '#1A1A1A',
@@ -534,18 +782,88 @@ const styles = StyleSheet.create({
   sendBtnText: { fontSize: 14, fontWeight: '700', color: '#111111' },
 
   // Lock states
-  lockState: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
+  lockState:     { paddingVertical: 14, alignItems: 'center' },
   lockStateText: { fontSize: 14, color: '#3A3A3A' },
-
-  unlockPrompt: { gap: 10 },
-  unlockPromptLabel: {
-    fontSize: 13,
-    color: '#555555',
-    textAlign: 'center',
-  },
+  unlockPrompt:      { gap: 10 },
+  unlockPromptLabel: { fontSize: 13, color: '#555555', textAlign: 'center' },
 
   error: { fontSize: 13, color: '#EF4444', textAlign: 'center' },
+
+  // Safety action sheet
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: '#000000AA',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#1A1A1A',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 36,
+    paddingTop: 12,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#333333',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetItem: { paddingVertical: 18, paddingHorizontal: 24 },
+  sheetItemText:        { fontSize: 16, color: '#CCCCCC', textAlign: 'center' },
+  sheetItemDestructive: { color: '#EF4444' },
+  sheetDivider:         { height: 1, backgroundColor: '#2A2A2A', marginHorizontal: 24, marginVertical: 4 },
+  sheetCancelText:      { fontSize: 16, fontWeight: '600', color: '#555555', textAlign: 'center' },
+
+  // Report form (full-screen modal)
+  reportSafe:  { flex: 1, backgroundColor: '#111111' },
+  reportScroll: { padding: 24, paddingBottom: 48 },
+  reportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  reportTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  reportClose: { fontSize: 15, color: '#555555' },
+
+  reportDoneWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  reportDoneTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  reportDoneBody:  { fontSize: 15, color: '#555555', textAlign: 'center', lineHeight: 22 },
+  reportDoneBtn: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+  },
+  reportDoneBtnText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+
+  reasonCard:         { borderWidth: 1, borderColor: '#2A2A2A', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 8 },
+  reasonCardSelected: { borderColor: '#FFFFFF', backgroundColor: '#FFFFFF0D' },
+  reasonText:         { fontSize: 14, color: '#555555' },
+  reasonTextSelected: { color: '#FFFFFF', fontWeight: '500' },
+
+  reportNoteWrapper: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  reportNoteInput: { fontSize: 14, color: '#AAAAAA', minHeight: 56, textAlignVertical: 'top' },
+
+  reportSubmitBtn:      { backgroundColor: '#FFFFFF', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  reportSubmitDisabled: { backgroundColor: '#2A2A2A' },
+  reportSubmitText:     { fontSize: 15, fontWeight: '700', color: '#111111' },
 })

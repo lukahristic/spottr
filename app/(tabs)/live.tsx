@@ -160,12 +160,6 @@ export default function LiveListScreen() {
     }, [])
   )
 
-  // Re-filter the live list whenever the block set changes
-  useEffect(() => {
-    if (blockedIds.size === 0) return
-    setCheckins((prev) => prev.filter((c) => !c.user_id || !blockedIds.has(c.user_id)))
-  }, [blockedIds])
-
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -176,10 +170,14 @@ export default function LiveListScreen() {
     )
   }
 
+  const visibleCheckins = checkins.filter(
+    (c) => !c.user_id || !blockedIds.has(c.user_id)
+  )
+
   return (
     <SafeAreaView style={styles.safe}>
       <FlatList
-        data={checkins}
+        data={visibleCheckins}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
