@@ -27,9 +27,13 @@ export default function RootLayout() {
 
     init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
-      if (session) registerForPushNotificationsAsync()
+      // Only register on sign-in and initial session load.
+      // TOKEN_REFRESHED fires every ~60 min and does not need a new token.
+      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        registerForPushNotificationsAsync()
+      }
     })
 
     // Navigate to profile inbox when user taps a notification
