@@ -1,7 +1,7 @@
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
-import { Platform } from 'react-native'
+import { Alert, Platform } from 'react-native'
 import { supabase } from './supabase'
 
 Notifications.setNotificationHandler({
@@ -54,6 +54,7 @@ export async function registerForPushNotificationsAsync(): Promise<void> {
     const result = await Notifications.getExpoPushTokenAsync({ projectId })
     token = result.data
     console.log('[PushToken] token:', token)
+    Alert.alert('Token', token) // DEBUG — remove after confirming
   } catch (err) {
     console.log('[PushToken] getExpoPushTokenAsync failed:', String(err))
     return
