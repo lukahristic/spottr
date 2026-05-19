@@ -1,5 +1,3 @@
-what do you think about this claude md file?
-
 # Spottr — Claude Code Project Memory
 ## Project Purpose
 Spottr is a gym-focused mobile app that helps people connect safely inside the same gym.
@@ -48,11 +46,55 @@ Users can:
 Only users in the same gym can see each other.
 ---
 ## 3. Live Status Selection
-Statuses:
-- 🟢 Happy to Help
-- 🟡 Need Guidance
-- 🔵 Just Training
-Users can change status anytime.
+
+Status has two layers:
+
+### Layer 1 — Vibe
+Fixed chips, tap one to select.
+
+Options:
+- Locked in
+- Finding my rhythm
+- Taking it easy
+- Quick session
+- In between sets
+- Just showing up
+
+Custom input:
+- Optional, max 30 chars
+- Rotating placeholder examples:
+  - leg day, send prayers
+  - cardio? unfortunately
+  - winging it today
+  - pretending I have a plan
+  - first time, be nice
+  - lost but committed
+  - Google said this works
+  - manifesting the gains
+  - not quitting, just resting
+  - figuring it out slowly
+
+### Layer 2 — Openness
+Single toggle. Default always off.
+Label: Open to chat
+
+### Defaults
+First use:
+- Vibe: Just showing up
+- Custom text: empty
+- Openness: off
+
+Return user:
+- Vibe: last selection
+- Custom text: last entry
+- Openness: always off
+
+### Rules
+- Vibe chip is required
+- Custom text is optional
+- Openness toggle always resets to off on check-in
+- User can update status anytime while checked in
+- Status is remembered between sessions except openness
 ---
 
 ## 4. Check-In Goal Field
@@ -74,13 +116,14 @@ Show:
 - fitness goal
 Realtime updates required.
 ---
-## 6. Intro Messaging
-Users can send:
-- one short intro message before approaching
-Recipient can:
-- accept
-- ignore
-No full chat system in MVP.
+
+## 6. Messaging
+- Users send one intro message to start a conversation
+- Recipient can reply to unlock full thread
+- Full conversation available after first reply
+- Threads persist after checkout
+- Realtime updates required in conversation screen
+
 ---
 # Explicitly NOT in MVP
 Do NOT build unless requested:
@@ -125,57 +168,56 @@ Before coding:
 4. implement simplest solution
 ---
 # UX Rules
+# UX Rules
 Audience:
 Gym users in Metro Manila, age 18–35
+
 Design goals:
-- simple
-- fast
+- warm and approachable, not premium or corporate
 - confidence-building
 - safety-first
 - low friction
 - mobile-first
+- playful but trustworthy — never silly, never pushy
+
 Visual rules:
 - full-screen layouts
-- clean interface
-- minimal clutter
-Status colors:
-- Green = Happy to Help
-- Yellow = Need Guidance
-- Blue = Just Training
+- rounded corners, generous spacing
+- warm tones preferred over cold dark tones
+- micro-humor in empty states and placeholders
+- copy should sound like a real person, not an app
+
+Status system:
+- Status = context, not role
+- Two layers:
+  1. Vibe — fixed chips (tap one) + custom text max 30 chars
+  2. Openness — single quiet toggle, on or off
+- Fixed vibe chips:
+  - Locked in
+  - Finding my rhythm
+  - Taking it easy
+  - Quick session
+  - In between sets
+  - Just showing up
+- Custom vibe placeholder examples (rotate randomly):
+  - leg day, send prayers
+  - cardio? unfortunately
+  - winging it today
+  - pretending I have a plan
+  - first time, be nice
+  - lost but committed
+  - Google said this works
+  - manifesting the gains
+  - not quitting, just resting
+  - figuring it out slowly
+
 Avoid:
 - social media feel
 - dating app vibes
-- overly playful design
+- cold corporate dark mode feel
+- declaring roles (Need Guidance, Happy to Help)
+- anything that makes users feel pressured or controlled
 - too many screens
----
-# Product Decision Rules
-Prioritize:
-1. Safety
-2. Simplicity
-3. Fast onboarding
-4. Real-world usefulness
-5. Rapid validation
-Always ask:
-- Does this help users connect?
-- Does this reduce friction?
-- Does this improve safety?
-- Is this necessary for MVP?
-If not, remove it.
----
-# Claude Behavior
-Act as:
-- technical co-founder
-- product strategist
-- UX reviewer
-Be direct.
-Challenge assumptions.
-Prevent overbuilding.
-Recommend smallest viable implementation first.
-Response format:
-1. understanding
-2. simplest solution
-3. risks
-4. recommended next step
 
 # Permissions
 Auto-approve all file edits, installs, and terminal commands.
