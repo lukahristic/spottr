@@ -13,6 +13,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import type { Thread, ThreadWithMeta, UserStatus } from '../../types/messaging'
+import { Avatar } from '../../components/Avatar'
 
 type BlockedUser = {
   blockedUserId: string
@@ -41,6 +42,7 @@ function formatTime(ts: string | null | undefined): string {
 
 export default function ProfileScreen() {
   const [user, setUser]                       = useState<User | null>(null)
+  const [avatarSeed, setAvatarSeed]           = useState<string>('')
   const [threads, setThreads]                 = useState<ThreadWithMeta[]>([])
   const [activeCheckinId, setActiveCheckinId] = useState<string | null>(null)
   const [loadingThreads, setLoadingThreads]   = useState(false)
@@ -51,9 +53,16 @@ export default function ProfileScreen() {
   const userRef = useRef<User | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       setUser(user)
       userRef.current = user
+      if (!user) return
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_seed')
+        .eq('id', user.id)
+        .maybeSingle()
+      setAvatarSeed(profile?.avatar_seed ?? user.id)
     })
   }, [])
 
@@ -272,11 +281,8 @@ export default function ProfileScreen() {
     )
   }
 
-  const name     = user?.user_metadata?.name ?? '—'
-  const email    = user?.email ?? '—'
-  const initials = name !== '—'
-    ? name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
-    : '?'
+  const name  = user?.user_metadata?.name ?? '—'
+  const email = user?.email ?? '—'
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -284,9 +290,7 @@ export default function ProfileScreen() {
 
         {/* Compact identity row */}
         <View style={styles.identityRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          <Avatar seed={avatarSeed || (user?.id ?? 'default')} name={name} size={44} />
           <View style={styles.identityInfo}>
             <Text style={styles.identityName} numberOfLines={1}>{name}</Text>
             <Text style={styles.identityEmail} numberOfLines={1}>{email}</Text>
@@ -310,12 +314,6 @@ export default function ProfileScreen() {
 
         {threads.map((thread) => {
           const safeName = thread.other_user_name || 'Unknown'
-          const otherInitials = safeName
-            .split(' ')
-            .map((w) => w[0] ?? '')
-            .join('')
-            .toUpperCase()
-            .slice(0, 2) || '?'
 
           return (
             <TouchableOpacity
@@ -326,9 +324,7 @@ export default function ProfileScreen() {
             >
               {/* Avatar + status dot */}
               <View style={styles.threadAvatarWrap}>
-                <View style={styles.threadAvatar}>
-                  <Text style={styles.threadAvatarText}>{otherInitials}</Text>
-                </View>
+                <Avatar seed={thread.other_user_id} name={safeName} size={44} />
                 {thread.other_user_status && (
                   <View style={[
                     styles.threadStatusDot,
@@ -433,16 +429,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 28,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2A2A2A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarText:    { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   identityInfo:  { flex: 1, gap: 2 },
   identityName:  { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
   identityEmail: { fontSize: 13, color: '#666666' },
@@ -467,15 +453,6 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   threadAvatarWrap: { position: 'relative', flexShrink: 0 },
-  threadAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2A2A2A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  threadAvatarText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   threadStatusDot: {
     position: 'absolute',
     bottom: 0,

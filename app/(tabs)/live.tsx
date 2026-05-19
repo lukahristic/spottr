@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
 import { supabase } from '../../lib/supabase'
+import { Avatar } from '../../components/Avatar'
 
 type Status = 'happy_to_help' | 'need_guidance' | 'just_training'
 
@@ -335,7 +336,10 @@ export default function LiveListScreen() {
               onPress={() => item.user_id && router.push(`/member/${item.id}`)}
               activeOpacity={0.7}
             >
-              <View style={[styles.dot, { backgroundColor: meta.color }]} />
+              <View style={styles.cardAvatarWrap}>
+                <Avatar seed={item.user_id ?? item.id} name={item.name} size={40} />
+                <View style={[styles.cardStatusDot, { backgroundColor: meta.color }]} />
+              </View>
               <View style={styles.cardBody}>
                 <View style={styles.cardNameRow}>
                   <Text style={styles.cardName}>{item.name}</Text>
@@ -475,7 +479,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 14,
   },
-  dot:          { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  cardAvatarWrap: { position: 'relative', flexShrink: 0 },
+  cardStatusDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 2,
+    borderColor: '#111111',
+  },
   cardBody:     { flex: 1, gap: 6 },
   cardNameRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   cardName:     { fontSize: 16, fontWeight: '600', color: '#FFFFFF', flexShrink: 1 },

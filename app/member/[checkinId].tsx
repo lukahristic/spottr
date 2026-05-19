@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
+import { Avatar } from '../../components/Avatar'
 
 type CheckIn = {
   id: string
@@ -103,13 +104,17 @@ export default function MemberScreen() {
     setSending(true)
     setError(null)
 
+    console.log('[handleSend] start', { userId: currentUser.id, checkinUserId: checkin.user_id })
+
     // Verify sender is still checked in
-    const { data: senderCheckin } = await supabase
+    const { data: senderCheckin, error: checkinErr } = await supabase
       .from('checkins')
       .select('id')
       .eq('user_id', currentUser.id)
       .eq('is_active', true)
       .maybeSingle()
+
+    console.log('[handleSend] step1 checkin check', { senderCheckin, checkinErr })
 
     if (!senderCheckin) {
       setError('Check in first, then send a message.')
@@ -118,14 +123,17 @@ export default function MemberScreen() {
     }
 
     const [u1, u2] = [currentUser.id, checkin.user_id].sort()
+    console.log('[handleSend] step2 user pair', { u1, u2 })
 
     // Check for existing thread one more time (race condition guard)
-    const { data: existingThread } = await supabase
+    const { data: existingThread, error: existingErr } = await supabase
       .from('threads')
       .select('id')
       .eq('user_1', u1)
       .eq('user_2', u2)
       .maybeSingle()
+
+    console.log('[handleSend] step3 existing thread check', { existingThread, existingErr })
 
     if (existingThread) {
       setSending(false)
@@ -145,6 +153,11 @@ export default function MemberScreen() {
       .select('id')
       .single()
 
+    console.log('[handleSend] step4 thread insert', {
+      thread,
+      threadError: threadError ? { message: threadError.message, code: threadError.code, details: threadError.details, hint: threadError.hint } : null,
+    })
+
     if (threadError || !thread) {
       setError('Something went wrong. Try again.')
       setSending(false)
@@ -157,6 +170,10 @@ export default function MemberScreen() {
       sender_id:    currentUser.id,
       body:         text.trim(),
       message_type: 'intro',
+    })
+
+    console.log('[handleSend] step5 message insert', {
+      msgError: msgError ? { message: msgError.message, code: msgError.code, details: msgError.details, hint: msgError.hint } : null,
     })
 
     setSending(false)
@@ -289,7 +306,8 @@ export default function MemberScreen() {
           </TouchableOpacity>
 
           {/* Profile header */}
-          <View style={styles.profileHeader}>
+          <Avatar seed={checkin.user_id} name={checkin.name} size={72} />
+          <View style={[styles.profileHeader, { marginTop: 16 }]}>
             <Text style={styles.memberName}>{checkin.name}</Text>
             <View style={[styles.statusBadge, { borderColor: `${meta.color}50` }]}>
               <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
