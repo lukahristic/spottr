@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import { colors } from '../../.claude/tokens/colors'
 
 export default function WelcomeScreen() {
   return (
@@ -8,8 +9,8 @@ export default function WelcomeScreen() {
       <View style={styles.container}>
 
         <View style={styles.brand}>
-          <Text style={styles.logo}>SPOTTR</Text>
-          <Text style={styles.tagline}>Connect at the gym.</Text>
+          <Text style={styles.logo}>Spottr</Text>
+          <Text style={styles.tagline}>The gym is less scary with people in it.</Text>
         </View>
 
         <View style={styles.actions}>
@@ -18,15 +19,15 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/(auth)/sign-up')}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryButtonText}>Create Account</Text>
+            <Text style={styles.primaryButtonText}>Get Started</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.secondaryButton}
             onPress={() => router.push('/(auth)/sign-in')}
             activeOpacity={0.7}
+            style={styles.secondaryButton}
           >
-            <Text style={styles.secondaryButtonText}>Sign In</Text>
+            <Text style={styles.secondaryButtonText}>I have an account</Text>
           </TouchableOpacity>
         </View>
 
@@ -38,7 +39,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#111111',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -51,15 +52,15 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   logo: {
-    fontSize: 52,
+    fontSize: 42,
     fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 6,
+    color: colors.textPrimary,
+    letterSpacing: 1,
     marginBottom: 12,
   },
   tagline: {
-    fontSize: 18,
-    color: '#666666',
+    fontSize: 16,
+    color: colors.textSecondary,
     fontWeight: '400',
   },
   actions: {
@@ -67,28 +68,23 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   primaryButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.accent,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111111',
-    letterSpacing: 0.3,
+    color: colors.textPrimary,
   },
   secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#888888',
-    letterSpacing: 0.3,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
 })
