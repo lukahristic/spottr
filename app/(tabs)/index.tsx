@@ -237,7 +237,7 @@ export default function CheckInScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>1 · Your Name</Text>
+        <Text style={styles.label}>Your Name</Text>
         <TextInput
           style={styles.input}
           placeholder="e.g. Alex"
@@ -249,7 +249,8 @@ export default function CheckInScreen() {
           editable={!loading}
         />
 
-        <Text style={styles.label}>2 · Today's Status</Text>
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>Today's Status</Text>
         <View style={styles.optionGroup}>
           {STATUSES.map((s) => {
             const selected = status === s.key
@@ -273,7 +274,8 @@ export default function CheckInScreen() {
           })}
         </View>
 
-        <Text style={styles.label}>3 · Today's Goal</Text>
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>Today's Goal</Text>
         <View style={styles.optionGroup}>
           {GOALS.map((g) => {
             const selected = goal === g
@@ -327,13 +329,18 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#888888',
-    letterSpacing: 0.8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666666',
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 12,
-    marginTop: 8,
+    marginTop: 0,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#1E1E1E',
+    marginBottom: 24,
   },
   noGyms: { fontSize: 15, color: '#555555' },
   gymList: { gap: 10 },
@@ -414,9 +421,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFD54A',
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 18,
     alignItems: 'center',
     marginTop: 8,
   },
@@ -425,8 +432,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#111111',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 })

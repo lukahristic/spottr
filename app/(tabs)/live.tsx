@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
@@ -46,12 +47,25 @@ export default function LiveListScreen() {
   const [refreshing, setRefreshing]       = useState(false)
   const [error, setError]                 = useState<string | null>(null)
   const [blockedIds, setBlockedIds]       = useState<Set<string>>(new Set())
+  const liveDotOpacity = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCurrentUserId(user?.id ?? null)
     })
   }, [])
+
+  useEffect(() => {
+    if (!isCheckedIn) return
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(liveDotOpacity, { toValue: 0.2, duration: 900, useNativeDriver: true }),
+        Animated.timing(liveDotOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    )
+    anim.start()
+    return () => anim.stop()
+  }, [isCheckedIn])
 
   async function fetchCheckins(): Promise<string | null> {
     const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
@@ -200,7 +214,15 @@ export default function LiveListScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.heading}>Live</Text>
+            <View style={styles.headingRow}>
+              <Text style={styles.heading}>Live</Text>
+              {isCheckedIn && (
+                <View style={styles.liveBadge}>
+                  <Animated.View style={[styles.liveBadgeDot, { opacity: liveDotOpacity }]} />
+                  <Text style={styles.liveBadgeText}>LIVE</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.subheading}>
               {gymName ? `Members at ${gymName} right now.` : 'Check in to see who\'s here.'}
             </Text>
@@ -210,15 +232,20 @@ export default function LiveListScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             {isCheckedIn ? (
-              <>
-                <Text style={styles.emptyText}>You're the only one here.</Text>
-                <Text style={styles.emptyHint}>Nobody else has checked in yet.</Text>
-              </>
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyIcon}>🏋️</Text>
+                <Text style={styles.emptyText}>You're the first here.</Text>
+                <Text style={styles.emptyHint}>Others will show up as they check in.</Text>
+              </View>
             ) : (
-              <>
-                <Text style={styles.emptyText}>Not checked in.</Text>
-                <Text style={styles.emptyHint}>Check in first to see who's here.</Text>
-              </>
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyIcon}>⚡</Text>
+                <Text style={styles.emptyText}>Nobody visible yet.</Text>
+                <Text style={styles.emptyHint}>Check in to see who's at your gym.</Text>
+                <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/')}>
+                  <Text style={styles.emptyButtonText}>Check In</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         }
@@ -260,12 +287,45 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list:   { padding: 24, paddingBottom: 48, flexGrow: 1 },
   header: { marginBottom: 24 },
-  heading:    { fontSize: 32, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
+  headingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
+  heading:    { fontSize: 32, fontWeight: '700', color: '#FFFFFF' },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  liveBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  liveBadgeText: { fontSize: 10, fontWeight: '700', color: '#22C55E', letterSpacing: 1 },
   subheading: { fontSize: 15, color: '#888888' },
   error:      { fontSize: 14, color: '#EF4444', marginTop: 12 },
-  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 80 },
-  emptyText:  { fontSize: 17, fontWeight: '600', color: '#FFFFFF' },
-  emptyHint:  { fontSize: 14, color: '#555555' },
+  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 20,
+    padding: 32,
+    gap: 8,
+    width: '100%',
+  },
+  emptyIcon: { fontSize: 36, marginBottom: 4 },
+  emptyText:  { fontSize: 17, fontWeight: '600', color: '#FFFFFF', textAlign: 'center' },
+  emptyHint:  { fontSize: 14, color: '#555555', textAlign: 'center' },
+  emptyButton: {
+    backgroundColor: '#FFD54A',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    marginTop: 12,
+  },
+  emptyButtonText: { fontSize: 14, fontWeight: '700', color: '#111111' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

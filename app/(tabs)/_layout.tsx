@@ -22,8 +22,8 @@ const TABS: { name: string; label: string; icon: string }[] = [
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
 
-  // One Animated.Value per tab drives icon scale — subtle pulse on focus
   const scales = useRef(TABS.map((_, i) => new Animated.Value(i === state.index ? 1 : 0.85))).current
+  const livePulse = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     scales.forEach((anim, i) => {
@@ -35,6 +35,15 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       }).start()
     })
   }, [state.index])
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(livePulse, { toValue: 1, duration: 1600, useNativeDriver: true }),
+        Animated.timing(livePulse, { toValue: 0, duration: 1600, useNativeDriver: true }),
+      ])
+    ).start()
+  }, [])
 
   // Bottom of the pill must clear the system gesture bar (insets.bottom)
   // plus a comfortable visual gap (16px)
@@ -68,24 +77,28 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               onPress={onPress}
               activeOpacity={0.75}
             >
-              <Animated.Text
-                style={[
-                  styles.icon,
-                  { transform: [{ scale: scales[index] }] },
-                ]}
-              >
-                {tab.icon}
-              </Animated.Text>
+              <View style={styles.iconWrap}>
+                <Animated.Text
+                  style={[
+                    styles.icon,
+                    { transform: [{ scale: scales[index] }] },
+                  ]}
+                >
+                  {tab.icon}
+                </Animated.Text>
+                {tab.name === 'live' && (
+                  <Animated.View style={[styles.liveDot, { opacity: livePulse }]} />
+                )}
+              </View>
 
               <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]}>
                 {tab.label}
               </Text>
 
-              {/* Thin indicator line — fades in/out */}
               <View
                 style={[
                   styles.indicator,
-                  { backgroundColor: isFocused ? ACCENT : 'transparent' },
+                  { backgroundColor: isFocused ? '#FFFFFF' : 'transparent' },
                 ]}
               />
             </TouchableOpacity>
@@ -112,7 +125,7 @@ const styles = StyleSheet.create({
   wrapper: {
     backgroundColor: '#111111',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 6,
   },
 
   pill: {
@@ -121,7 +134,7 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     borderWidth: 1,
     borderColor: '#2C2C2C',
-    paddingVertical: 10,
+    paddingVertical: 7,
     paddingHorizontal: 8,
     // iOS shadow
     shadowColor: '#000000',
@@ -135,12 +148,26 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 0,
     gap: 3,
   },
 
+  iconWrap: {
+    position: 'relative',
+  },
+
   icon: {
-    fontSize: 22,
+    fontSize: 20,
+  },
+
+  liveDot: {
+    position: 'absolute',
+    top: -1,
+    right: -4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
   },
 
   label: {
@@ -150,11 +177,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  // 20×2 pill under the active tab label
   indicator: {
-    width: 20,
-    height: 2,
-    borderRadius: 1,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     marginTop: 1,
   },
 })
