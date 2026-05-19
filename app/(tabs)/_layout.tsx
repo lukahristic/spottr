@@ -9,14 +9,17 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
+import { MapPinCheck, Zap, User } from 'lucide-react-native'
+
+type IconProps = { size?: number; color?: string; strokeWidth?: number }
 
 const ACCENT   = '#FFD54A'
 const INACTIVE = '#555555'
 
-const TABS: { name: string; label: string; icon: string }[] = [
-  { name: 'index',   label: 'Check In', icon: '📍' },
-  { name: 'live',    label: 'Live',     icon: '⚡' },
-  { name: 'profile', label: 'Profile',  icon: '👤' },
+const TABS: { name: string; label: string; Icon: React.ComponentType<IconProps> }[] = [
+  { name: 'index',   label: 'Check In', Icon: MapPinCheck },
+  { name: 'live',    label: 'Live',     Icon: Zap         },
+  { name: 'profile', label: 'Profile',  Icon: User        },
 ]
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
@@ -66,16 +69,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               onPress={onPress}
               activeOpacity={0.75}
             >
-              <View style={styles.iconWrap}>
-                <Animated.Text
-                  style={[
-                    styles.icon,
-                    { transform: [{ scale: scales[index] }] },
-                  ]}
-                >
-                  {tab.icon}
-                </Animated.Text>
-              </View>
+              <Animated.View style={[styles.iconWrap, { transform: [{ scale: scales[index] }] }]}>
+                <tab.Icon size={20} strokeWidth={1.75} color={isFocused ? ACCENT : INACTIVE} />
+              </Animated.View>
 
               <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]}>
                 {tab.label}
@@ -140,10 +136,6 @@ const styles = StyleSheet.create({
 
   iconWrap: {
     position: 'relative',
-  },
-
-  icon: {
-    fontSize: 20,
   },
 
   label: {
