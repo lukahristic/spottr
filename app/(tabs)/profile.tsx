@@ -25,8 +25,10 @@ const STATUS_COLOR: Record<string, string> = {
   just_training:  '#3B82F6',
 }
 
-function formatTime(ts: string): string {
+function formatTime(ts: string | null | undefined): string {
+  if (!ts) return ''
   const date = new Date(ts)
+  if (isNaN(date.getTime())) return ''
   const now  = new Date()
   const diffMs   = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -113,7 +115,7 @@ export default function ProfileScreen() {
       if (!userId) return
 
       setLoadingThreads(true)
-      loadThreads(userId)
+      loadThreads(userId).catch(() => setLoadingThreads(false))
 
       supabase
         .from('checkins')
@@ -122,8 +124,9 @@ export default function ProfileScreen() {
         .eq('is_active', true)
         .maybeSingle()
         .then(({ data }) => setActiveCheckinId(data?.id ?? null))
+        .catch(() => setActiveCheckinId(null))
 
-      loadBlockedUsers(userId)
+      loadBlockedUsers(userId).catch(() => setBlockedUsers([]))
     }, [user?.id])
   )
 
@@ -306,12 +309,13 @@ export default function ProfileScreen() {
         )}
 
         {threads.map((thread) => {
-          const otherInitials = thread.other_user_name
+          const safeName = thread.other_user_name || 'Unknown'
+          const otherInitials = safeName
             .split(' ')
-            .map((w) => w[0])
+            .map((w) => w[0] ?? '')
             .join('')
             .toUpperCase()
-            .slice(0, 2)
+            .slice(0, 2) || '?'
 
           return (
             <TouchableOpacity
@@ -337,7 +341,7 @@ export default function ProfileScreen() {
               <View style={styles.threadContent}>
                 <View style={styles.threadTopRow}>
                   <Text style={styles.threadName} numberOfLines={1}>
-                    {thread.other_user_name}
+                    {safeName}
                   </Text>
                   <View style={styles.threadMeta}>
                     {thread.unread_count > 0 && (
