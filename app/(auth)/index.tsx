@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { colors } from '../../.claude/tokens/colors'
@@ -9,7 +9,7 @@ export default function WelcomeScreen() {
       <View style={styles.container}>
 
         <View style={styles.brand}>
-          <Text style={styles.logo}>Spottr</Text>
+          <Image source={require('../../assets/spottr_logo.png')} style={styles.logo} resizeMode="contain" />
           <Text style={styles.tagline}>The gym is less scary with people in it.</Text>
         </View>
 
@@ -49,18 +49,17 @@ const styles = StyleSheet.create({
   brand: {
     flex: 1,
     justifyContent: 'center',
-    paddingBottom: 60,
+    alignItems: 'center',
+    paddingTop: 100,
   },
   logo: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: 1,
+    width: 180,
+    height: 80,
     marginBottom: 12,
   },
   tagline: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    fontSize: 17,
+    color: '#5C5652',
     fontWeight: '400',
   },
   actions: {
