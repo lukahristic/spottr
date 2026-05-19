@@ -12,7 +12,9 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
+import { colors } from '../../.claude/tokens/colors'
 
 export default function SignUpScreen() {
   const [name, setName]         = useState('')
@@ -32,7 +34,6 @@ export default function SignUpScreen() {
 
   function handleEmailChange(v: string) {
     setEmail(v)
-    // Clear "already exists" state when user edits the email
     if (emailTaken) setEmailTaken(false)
     if (error) setError(null)
   }
@@ -81,17 +82,17 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+            <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <Text style={styles.heading}>Create Account</Text>
-          <Text style={styles.subheading}>Join Spottr to connect at the gym.</Text>
+          <Text style={styles.heading}>Let's get you in.</Text>
+          <Text style={styles.subheading}>Takes 30 seconds. No gym experience required.</Text>
 
           <Text style={styles.label}>Name</Text>
           <TextInput
             style={styles.input}
             placeholder="Your name"
-            placeholderTextColor="#555"
+            placeholderTextColor={colors.textSecondary}
             value={name}
             onChangeText={setName}
             autoCapitalize="words"
@@ -103,7 +104,7 @@ export default function SignUpScreen() {
           <TextInput
             style={[styles.input, emailTaken && styles.inputError]}
             placeholder="you@example.com"
-            placeholderTextColor="#555"
+            placeholderTextColor={colors.textSecondary}
             value={email}
             onChangeText={handleEmailChange}
             autoCapitalize="none"
@@ -116,7 +117,7 @@ export default function SignUpScreen() {
           <TextInput
             style={styles.input}
             placeholder="Min. 6 characters"
-            placeholderTextColor="#555"
+            placeholderTextColor={colors.textSecondary}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -148,8 +149,8 @@ export default function SignUpScreen() {
             activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color="#111111" />
-              : <Text style={styles.buttonText}>Create Account</Text>
+              ? <ActivityIndicator color={colors.textPrimary} />
+              : <Text style={styles.buttonText}>I'm in</Text>
             }
           </TouchableOpacity>
 
@@ -160,7 +161,7 @@ export default function SignUpScreen() {
           >
             <Text style={styles.switchText}>
               Already have an account?{' '}
-              <Text style={styles.switchHighlight}>Sign In</Text>
+              <Text style={styles.switchHighlight}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -170,40 +171,37 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:  { flex: 1, backgroundColor: '#111111' },
+  safe:  { flex: 1, backgroundColor: colors.background },
   flex:  { flex: 1 },
   scroll: { padding: 24, paddingBottom: 48 },
   back:     { marginBottom: 32 },
-  backText: { fontSize: 15, color: '#888888' },
   heading: {
     fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   subheading: {
     fontSize: 15,
-    color: '#888888',
+    color: colors.textSecondary,
     marginBottom: 36,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#888888',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    color: colors.textSecondary,
     marginBottom: 10,
     marginTop: 4,
   },
   input: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
+    borderColor: colors.surface,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 20,
   },
   inputError: {
@@ -225,25 +223,25 @@ const styles = StyleSheet.create({
   },
   takenLink: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   button: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#DFAF3A',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,
     marginBottom: 24,
   },
-  buttonDisabled: { backgroundColor: '#2A2A2A' },
+  buttonDisabled: { backgroundColor: colors.surface },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111111',
+    color: '#2B2B2B',
     letterSpacing: 0.3,
   },
   switchLink:      { alignItems: 'center' },
-  switchText:      { fontSize: 14, color: '#666666' },
-  switchHighlight: { color: '#FFFFFF', fontWeight: '600' },
+  switchText:      { fontSize: 14, color: colors.textSecondary },
+  switchHighlight: { color: colors.textPrimary, fontWeight: '600' },
 })
