@@ -1,0 +1,1 @@
+export const colors = {  background: '#FAF8F4',  surface: '#F2EEE7',  textPrimary: '#2B2B2B',  textSecondary: '#7A746D',  accent: '#DFAF3A',  statusOpen: '#B8D8C0',  statusLearning: '#F3D7B6',  statusFocused: '#C9D8E8',
