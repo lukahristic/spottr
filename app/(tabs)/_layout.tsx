@@ -23,8 +23,6 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
 
   const scales = useRef(TABS.map((_, i) => new Animated.Value(i === state.index ? 1 : 0.85))).current
-  const livePulse = useRef(new Animated.Value(0)).current
-
   useEffect(() => {
     scales.forEach((anim, i) => {
       Animated.spring(anim, {
@@ -35,15 +33,6 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       }).start()
     })
   }, [state.index])
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(livePulse, { toValue: 1, duration: 1600, useNativeDriver: true }),
-        Animated.timing(livePulse, { toValue: 0, duration: 1600, useNativeDriver: true }),
-      ])
-    ).start()
-  }, [])
 
   // Bottom of the pill must clear the system gesture bar (insets.bottom)
   // plus a comfortable visual gap (16px)
@@ -86,9 +75,6 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 >
                   {tab.icon}
                 </Animated.Text>
-                {tab.name === 'live' && (
-                  <Animated.View style={[styles.liveDot, { opacity: livePulse }]} />
-                )}
               </View>
 
               <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]}>
@@ -158,16 +144,6 @@ const styles = StyleSheet.create({
 
   icon: {
     fontSize: 20,
-  },
-
-  liveDot: {
-    position: 'absolute',
-    top: -1,
-    right: -4,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
   },
 
   label: {

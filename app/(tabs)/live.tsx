@@ -64,26 +64,13 @@ export default function LiveListScreen() {
   const [statusLoading, setStatusLoading] = useState(false)
   const [toast, setToast]                 = useState<string | null>(null)
 
-  const liveDotOpacity = useRef(new Animated.Value(1)).current
-  const toastOpacity   = useRef(new Animated.Value(0)).current
+  const toastOpacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCurrentUserId(user?.id ?? null)
     })
   }, [])
-
-  useEffect(() => {
-    if (!isCheckedIn) return
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(liveDotOpacity, { toValue: 0.2, duration: 900, useNativeDriver: true }),
-        Animated.timing(liveDotOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
-      ])
-    )
-    anim.start()
-    return () => anim.stop()
-  }, [isCheckedIn])
 
   function showToast(message: string) {
     setToast(message)
@@ -281,7 +268,7 @@ export default function LiveListScreen() {
               <Text style={styles.heading}>Live</Text>
               {isCheckedIn && (
                 <View style={styles.liveBadge}>
-                  <Animated.View style={[styles.liveBadgeDot, { opacity: liveDotOpacity }]} />
+                  <View style={styles.liveBadgeDot} />
                   <Text style={styles.liveBadgeText}>LIVE</Text>
                 </View>
               )}
