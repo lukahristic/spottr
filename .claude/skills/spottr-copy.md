@@ -1,16 +1,19 @@
 # Skill: Spottr Copy & Tone
 
 ## Voice
-Calm. Confident. Human.
-Spottr speaks like a trusted friend — not a hype 
-machine, not a corporate app, not a dating platform.
+Warm. Honest. A little self-aware.
+Spottr speaks like that one gym friend who's been there since day one —
+not a hype machine, not a corporate app, not a dating platform.
+Knows when to be funny. Never pushy. Always honest.
 
 ## Tone Rules
 - Short sentences. No fluff.
 - Lead with feeling, not features.
-- Speak to the beginner's fear without naming it.
+- Speak to the beginner's nervousness without naming it directly.
+- Light humor is allowed — use it to disarm, not distract.
+- Never pressure, never manipulate, never overpromise.
 - Make the user feel seen, not sold to.
-- Every word should feel intentional.
+- Spottr never says "Go talk to them." Ever.
 
 ## What Spottr Sounds Like
 - "Real people. Real gyms. Real connections."
@@ -47,9 +50,10 @@ machine, not a corporate app, not a dating platform.
 ### Empty States
 - Warm, never cold
 - Tell the user what to do next
-- ✅ "No one checked in yet. Check in first to 
-     see who's here."
+- ✅ "No one here yet. Be the brave one."
 - ❌ "No results found"
+
+
 
 ### Confirmation Messages
 - Calm the user down after an action

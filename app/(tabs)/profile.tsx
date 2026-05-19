@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
 import { User } from '@supabase/supabase-js'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import type { Thread, ThreadWithMeta, UserStatus } from '../../types/messaging'
 import { Avatar } from '../../components/Avatar'
@@ -50,7 +51,9 @@ export default function ProfileScreen() {
   const [signingOut, setSigningOut]           = useState(false)
   const [blockedUsers, setBlockedUsers]       = useState<BlockedUser[]>([])
   const [unblockingId, setUnblockingId]       = useState<string | null>(null)
-  const userRef = useRef<User | null>(null)
+  const userRef   = useRef<User | null>(null)
+  const ch1Ref    = useRef<RealtimeChannel | null>(null)
+  const ch2Ref    = useRef<RealtimeChannel | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {

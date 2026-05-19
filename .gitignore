@@ -43,3 +43,10 @@ yarn-error.*
 
 *-adminsdk-*.json
 *.json.key
+spottr-*.json
+
+# VS Code
+.vscode/
+
+# Claude Code local settings
+.claude/settings.local.json

@@ -8,9 +8,10 @@ Use this when asked to review or improve any Spottr screen.
 - No Tailwind or NativeWind
 
 ## Product Tone
-- calm, premium, minimal
-- consent-first, socially reassuring
-- not a dating app, not a chat app
+- warm, approachable, playful but trustworthy
+- consent-first, never pushy
+- feels like a friendly person, not a premium product
+- not a dating app, not a chat app, not a fitness tracker
 
 ## Output Format
 1. UX critique — what's wrong and why
@@ -21,6 +22,6 @@ Use this when asked to review or improve any Spottr screen.
 ## Rules
 - Do not redesign the whole app
 - Only improve the requested screen
-- Preserve dark premium aesthetic
+- Warm and human aesthetic — not cold dark premium
 - Keep mobile-first design
-- Preserve Spottr branding and tone
+- Preserve Spottr branding and updated tone
