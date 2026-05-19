@@ -419,15 +419,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Debug */}
-        <TouchableOpacity
-          style={styles.debugLink}
-          onPress={() => router.push('/debug')}
-          activeOpacity={0.5}
-        >
-          <Text style={styles.debugLinkText}>debug</Text>
-        </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   )
@@ -547,6 +538,5 @@ const styles = StyleSheet.create({
   },
   actionDisabled:    { opacity: 0.5 },
   actionButtonText:  { fontSize: 15, fontWeight: '600', color: '#CCCCCC' },
-  debugLink:     { alignItems: 'center', marginTop: 32 },
-  debugLinkText: { fontSize: 11, color: '#2A2A2A' },
+
 })
