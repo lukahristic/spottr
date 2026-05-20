@@ -64,7 +64,7 @@ export default function SignUpScreen() {
       if (isAlreadyRegistered) {
         setEmailTaken(true)
       } else {
-        setError('Something went wrong. Try again.')
+        setError("Something's off on our end. Give it another shot.")
       }
       return
     }
@@ -131,13 +131,13 @@ export default function SignUpScreen() {
           {emailTaken && (
             <View style={styles.takenBox}>
               <Text style={styles.takenText}>
-                This email already has an account.
+                Looks like you already have an account.
               </Text>
               <TouchableOpacity
                 onPress={() => router.replace('/(auth)/sign-in')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.takenLink}>Sign in instead →</Text>
+                <Text style={styles.takenLink}>Sign in instead?</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -205,11 +205,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputError: {
-    borderColor: '#EF444460',
+    borderColor: '#C0392B60',
   },
   error: {
     fontSize: 14,
-    color: '#EF4444',
+    fontWeight: '500',
+    color: '#C0392B',
     marginBottom: 12,
   },
   takenBox: {
@@ -218,7 +219,8 @@ const styles = StyleSheet.create({
   },
   takenText: {
     fontSize: 14,
-    color: '#EF4444',
+    fontWeight: '500',
+    color: '#C0392B',
     lineHeight: 20,
   },
   takenLink: {

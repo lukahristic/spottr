@@ -37,7 +37,14 @@ export default function SignInScreen() {
     setLoading(false)
 
     if (authError) {
-      setError('Incorrect email or password.')
+      const isCredentialsError =
+        authError.message?.toLowerCase().includes('invalid login') ||
+        authError.message?.toLowerCase().includes('invalid credentials')
+      setError(
+        isCredentialsError
+          ? "Hmm, that didn't work. Double-check and try again."
+          : "Something's off on our end. Give it another shot."
+      )
       return
     }
     // onAuthStateChange in root layout handles redirect
@@ -152,7 +159,8 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: 14,
-    color: '#EF4444',
+    fontWeight: '500',
+    color: '#C0392B',
     marginBottom: 12,
   },
   button: {

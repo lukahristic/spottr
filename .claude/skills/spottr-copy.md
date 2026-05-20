@@ -69,6 +69,19 @@ Knows when to be funny. Never pushy. Always honest.
 - ✅ "Something went wrong. Try again."
 - ❌ "Invalid input"
 
+## Auth Error Messages
+Exact strings to use for auth-related errors. Do not substitute generic system text.
+
+| Scenario | String |
+|---|---|
+| Wrong credentials | "Hmm, that didn't work. Double-check and try again." |
+| Server or unknown error | "Something's off on our end. Give it another shot." |
+| Email already registered | "Looks like you already have an account. Sign in instead?" |
+| Password too short | "Password needs at least 6 characters." |
+| Empty fields | "Fill in everything above and you're good to go." |
+
+Style: `color: '#C0392B'`, `fontSize: 14`, `fontWeight: '500'`
+
 ## The Copy Test
 Before finalizing any copy, ask:
 - Does this sound like a real person talking?
