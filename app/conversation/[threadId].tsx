@@ -16,6 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { User } from '@supabase/supabase-js'
+import { ChevronLeft } from 'lucide-react-native'
+import { colors } from '../../.claude/tokens/colors'
 import { supabase } from '../../lib/supabase'
 import type { Thread, Message, UserStatus } from '../../types/messaging'
 
@@ -366,7 +368,7 @@ export default function ConversationScreen() {
     return (
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backText}>← Back</Text>
+          <ChevronLeft size={22} color={colors.textSecondary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerName} numberOfLines={1}>
@@ -520,7 +522,7 @@ export default function ConversationScreen() {
                 <TextInput
                   style={styles.reportNoteInput}
                   placeholder="Anything else? (optional)"
-                  placeholderTextColor="#444444"
+                  placeholderTextColor={colors.textSecondary}
                   value={reportNote}
                   onChangeText={setReportNote}
                   multiline
@@ -659,8 +661,8 @@ export default function ConversationScreen() {
             <View style={styles.replyRow}>
               <TextInput
                 style={styles.replyInput}
-                placeholder="Reply…"
-                placeholderTextColor="#444444"
+                placeholder="Say something..."
+                placeholderTextColor={colors.textSecondary}
                 value={replyText}
                 onChangeText={(v) => setReplyText(v.slice(0, 300))}
                 multiline
@@ -688,8 +690,8 @@ export default function ConversationScreen() {
               <View style={styles.replyRow}>
                 <TextInput
                   style={styles.replyInput}
-                  placeholder="Write a reply…"
-                  placeholderTextColor="#444444"
+                  placeholder="Say something..."
+                  placeholderTextColor={colors.textSecondary}
                   value={replyText}
                   onChangeText={(v) => setReplyText(v.slice(0, 300))}
                   multiline
@@ -720,7 +722,7 @@ export default function ConversationScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:  { flex: 1, backgroundColor: '#111111' },
+  safe:  { flex: 1, backgroundColor: colors.background },
   flex:  { flex: 1 },
   center: {
     flex: 1,
@@ -729,8 +731,8 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 8,
   },
-  stateMsg:    { fontSize: 16, fontWeight: '500', color: '#666666', textAlign: 'center' },
-  stateMsgSub: { fontSize: 13, color: '#444444', textAlign: 'center' },
+  stateMsg:    { fontSize: 16, fontWeight: '500', color: colors.textSecondary, textAlign: 'center' },
+  stateMsgSub: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
 
   // Header
   header: {
@@ -739,29 +741,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1A1A1A',
+    borderBottomColor: colors.surface,
     gap: 14,
+    backgroundColor: colors.background,
   },
   backBtn:  { paddingVertical: 2 },
-  backText: { fontSize: 15, color: '#888888' },
+  backText: { fontSize: 15, color: colors.textSecondary },
   headerCenter: { flex: 1, gap: 2 },
-  headerName:   { fontSize: 17, fontWeight: '600', color: '#FFFFFF' },
+  headerName:   { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   headerStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   headerStatusDot:   { width: 7, height: 7, borderRadius: 3.5 },
   headerStatusLabel: { fontSize: 12, fontWeight: '500' },
   moreBtn:     { paddingVertical: 4, paddingHorizontal: 2 },
-  moreBtnText: { fontSize: 22, color: '#555555', letterSpacing: 2 },
+  moreBtnText: { fontSize: 22, color: colors.textSecondary, letterSpacing: 2 },
 
   // Blocked state unblock button
   unblockBtn: {
     marginTop: 20,
     borderWidth: 1,
-    borderColor: '#FFFFFF30',
+    borderColor: colors.textSecondary,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 28,
   },
-  unblockBtnText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  unblockBtnText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
 
   // Messages
   messageList: { padding: 20, paddingBottom: 8, gap: 4 },
@@ -771,65 +774,63 @@ const styles = StyleSheet.create({
   bubbleWrapOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
 
   introLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
-  introLabelOwn:   { color: '#3A4A3A' },
-  introLabelOther: { color: '#444444' },
+  introLabelOwn:   { color: colors.textSecondary },
+  introLabelOther: { color: colors.textSecondary },
 
-  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleOwn:   { backgroundColor: '#1E2A1E', borderBottomRightRadius: 4 },
-  bubbleOther: { backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: '#2A2A2A', borderBottomLeftRadius: 4 },
-  bubbleIntroOwn:   { borderWidth: 1, borderColor: '#22C55E20' },
-  bubbleIntroOther: { borderColor: '#333333' },
+  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleOwn:   { backgroundColor: colors.accent, borderBottomRightRadius: 4 },
+  bubbleOther: { backgroundColor: colors.surface, borderBottomLeftRadius: 4 },
+  bubbleIntroOwn:   { borderWidth: 1, borderColor: colors.accent },
+  bubbleIntroOther: { borderWidth: 1, borderColor: colors.surface },
   bubbleText:      { fontSize: 15, lineHeight: 22 },
-  bubbleTextOwn:   { color: '#DDDDDD' },
-  bubbleTextOther: { color: '#CCCCCC' },
+  bubbleTextOwn:   { color: colors.textPrimary },
+  bubbleTextOther: { color: colors.textPrimary },
   bubbleTime:      { fontSize: 11, marginTop: 4 },
-  bubbleTimeOwn:   { color: '#3A4A3A' },
-  bubbleTimeOther: { color: '#444444' },
+  bubbleTimeOwn:   { color: colors.textSecondary },
+  bubbleTimeOther: { color: colors.textSecondary },
 
   // Input area
-  inputArea: { borderTopWidth: 1, borderTopColor: '#1A1A1A', padding: 16, gap: 8 },
+  inputArea: { borderTopWidth: 1, borderTopColor: colors.surface, padding: 16, gap: 8, backgroundColor: colors.background },
   replyRow:  { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   replyInput: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     maxHeight: 96,
     textAlignVertical: 'top',
   },
   sendBtn: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 16,
+    backgroundColor: '#DFAF3A',
+    borderRadius: 20,
+    paddingHorizontal: 18,
     paddingVertical: 11,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  sendBtnDisabled: { backgroundColor: '#2A2A2A' },
-  sendBtnText: { fontSize: 14, fontWeight: '700', color: '#111111' },
+  sendBtnDisabled: { backgroundColor: colors.surface },
+  sendBtnText: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
 
   // Lock states
   lockState:     { paddingVertical: 14, alignItems: 'center' },
-  lockStateText: { fontSize: 14, color: '#3A3A3A' },
+  lockStateText: { fontSize: 14, color: colors.textSecondary },
   unlockPrompt:      { gap: 10 },
-  unlockPromptLabel: { fontSize: 13, color: '#555555', textAlign: 'center' },
+  unlockPromptLabel: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
 
   error: { fontSize: 13, color: '#EF4444', textAlign: 'center' },
 
   // Safety action sheet
   sheetOverlay: {
     flex: 1,
-    backgroundColor: '#000000AA',
+    backgroundColor: '#00000066',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 36,
@@ -839,18 +840,18 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     alignSelf: 'center',
     marginBottom: 12,
   },
   sheetItem: { paddingVertical: 18, paddingHorizontal: 24 },
-  sheetItemText:        { fontSize: 16, color: '#CCCCCC', textAlign: 'center' },
+  sheetItemText:        { fontSize: 16, color: colors.textPrimary, textAlign: 'center' },
   sheetItemDestructive: { color: '#EF4444' },
-  sheetDivider:         { height: 1, backgroundColor: '#2A2A2A', marginHorizontal: 24, marginVertical: 4 },
-  sheetCancelText:      { fontSize: 16, fontWeight: '600', color: '#555555', textAlign: 'center' },
+  sheetDivider:         { height: 1, backgroundColor: colors.surface, marginHorizontal: 24, marginVertical: 4 },
+  sheetCancelText:      { fontSize: 16, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
 
   // Report form (full-screen modal)
-  reportSafe:  { flex: 1, backgroundColor: '#111111' },
+  reportSafe:  { flex: 1, backgroundColor: colors.background },
   reportScroll: { padding: 24, paddingBottom: 48 },
   reportHeader: {
     flexDirection: 'row',
@@ -858,8 +859,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
   },
-  reportTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
-  reportClose: { fontSize: 15, color: '#555555' },
+  reportTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
+  reportClose: { fontSize: 15, color: colors.textSecondary },
 
   reportDoneWrap: {
     flex: 1,
@@ -868,35 +869,33 @@ const styles = StyleSheet.create({
     padding: 32,
     gap: 12,
   },
-  reportDoneTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
-  reportDoneBody:  { fontSize: 15, color: '#555555', textAlign: 'center', lineHeight: 22 },
+  reportDoneTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
+  reportDoneBody:  { fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
   reportDoneBtn: {
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 40,
   },
-  reportDoneBtnText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  reportDoneBtnText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
 
-  reasonCard:         { borderWidth: 1, borderColor: '#2A2A2A', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 8 },
-  reasonCardSelected: { borderColor: '#FFFFFF', backgroundColor: '#FFFFFF0D' },
-  reasonText:         { fontSize: 14, color: '#555555' },
-  reasonTextSelected: { color: '#FFFFFF', fontWeight: '500' },
+  reasonCard:         { borderWidth: 1, borderColor: colors.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 8 },
+  reasonCardSelected: { borderColor: colors.accent, backgroundColor: colors.surface },
+  reasonText:         { fontSize: 14, color: colors.textSecondary },
+  reasonTextSelected: { color: colors.textPrimary, fontWeight: '500' },
 
   reportNoteWrapper: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 12,
     marginTop: 8,
     marginBottom: 16,
   },
-  reportNoteInput: { fontSize: 14, color: '#AAAAAA', minHeight: 56, textAlignVertical: 'top' },
+  reportNoteInput: { fontSize: 14, color: colors.textSecondary, minHeight: 56, textAlignVertical: 'top' },
 
-  reportSubmitBtn:      { backgroundColor: '#FFFFFF', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  reportSubmitDisabled: { backgroundColor: '#2A2A2A' },
-  reportSubmitText:     { fontSize: 15, fontWeight: '700', color: '#111111' },
+  reportSubmitBtn:      { backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  reportSubmitDisabled: { backgroundColor: colors.surface },
+  reportSubmitText:     { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 })
