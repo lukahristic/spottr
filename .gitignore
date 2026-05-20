@@ -48,5 +48,8 @@ spottr-*.json
 # VS Code
 .vscode/
 
+# JetBrains IDEs
+.idea/
+
 # Claude Code local settings
 .claude/settings.local.json
