@@ -9,17 +9,18 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
-import { MapPinCheck, Zap, User } from 'lucide-react-native'
+import { MapPinCheck, Zap, MessageCircle, User } from 'lucide-react-native'
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number }
 
-const ACCENT   = '#FFD54A'
+const ACCENT   = '#DFAF3A'
 const INACTIVE = '#555555'
 
 const TABS: { name: string; label: string; Icon: React.ComponentType<IconProps> }[] = [
-  { name: 'index',   label: 'Check In', Icon: MapPinCheck },
-  { name: 'live',    label: 'Live',     Icon: Zap         },
-  { name: 'profile', label: 'Profile',  Icon: User        },
+  { name: 'index',    label: 'Check In', Icon: MapPinCheck    },
+  { name: 'live',     label: 'Live',     Icon: Zap            },
+  { name: 'messages', label: 'Messages', Icon: MessageCircle  },
+  { name: 'profile',  label: 'Profile',  Icon: User           },
 ]
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
