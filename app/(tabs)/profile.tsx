@@ -12,6 +12,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { Avatar } from '../../components/Avatar'
+import { dicebearUrl } from '../../lib/avatar'
 import { colors } from '../../.claude/tokens/colors'
 
 export default function ProfileScreen() {
@@ -20,12 +21,21 @@ export default function ProfileScreen() {
   const [currentVibe, setCurrentVibe]         = useState<string | null>(null)
   const [checkingOut, setCheckingOut]         = useState(false)
   const [signingOut, setSigningOut]           = useState(false)
+  const [avatarUri, setAvatarUri]             = useState<string | undefined>(undefined)
   const userRef = useRef<User | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       setUser(user)
       userRef.current = user
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('avatar_seed')
+          .eq('id', user.id)
+          .single()
+        if (data?.avatar_seed) setAvatarUri(dicebearUrl(data.avatar_seed))
+      }
     })
   }, [])
 
@@ -86,6 +96,7 @@ export default function ProfileScreen() {
             size={80}
             bg={colors.accent}
             fg={colors.textPrimary}
+            uri={avatarUri}
           />
         </View>
 

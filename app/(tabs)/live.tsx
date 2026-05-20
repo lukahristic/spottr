@@ -13,6 +13,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { Pencil, Zap } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { Avatar } from '../../components/Avatar'
+import { dicebearUrl } from '../../lib/avatar'
 import { colors } from '../../.claude/tokens/colors'
 
 type CheckIn = {
@@ -46,6 +47,7 @@ export default function LiveListScreen() {
   const [myName, setMyName]             = useState<string | null>(null)
   const [myVibe, setMyVibe]             = useState<string | null>(null)
   const [myCustomVibe, setMyCustomVibe] = useState<string | null>(null)
+  const [avatarUrls, setAvatarUrls]     = useState<Record<string, string>>({})
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -100,6 +102,18 @@ export default function LiveListScreen() {
 
     setError(null)
     setCheckins(data as CheckIn[])
+
+    const userIds = (data as CheckIn[]).map((c) => c.user_id).filter(Boolean) as string[]
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, avatar_seed')
+        .in('id', userIds)
+      const map: Record<string, string> = {}
+      profiles?.forEach((p) => { if (p.avatar_seed) map[p.id] = dicebearUrl(p.avatar_seed) })
+      setAvatarUrls(map)
+    }
+
     return gymId
   }
 
@@ -122,8 +136,19 @@ export default function LiveListScreen() {
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'checkins', filter: `gym_id=eq.${gymId}` },
-          (payload) => {
-            setCheckins((prev) => [payload.new as CheckIn, ...prev])
+          async (payload) => {
+            const newCheckin = payload.new as CheckIn
+            setCheckins((prev) => [newCheckin, ...prev])
+            if (newCheckin.user_id) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('avatar_seed')
+                .eq('id', newCheckin.user_id)
+                .single()
+              if (profile?.avatar_seed) {
+                setAvatarUrls((prev) => ({ ...prev, [newCheckin.user_id!]: dicebearUrl(profile.avatar_seed) }))
+              }
+            }
           }
         )
         .on(
@@ -259,6 +284,7 @@ export default function LiveListScreen() {
                 size={44}
                 bg={colors.accent}
                 fg={colors.textPrimary}
+                uri={item.user_id ? avatarUrls[item.user_id] : undefined}
               />
               <View style={styles.cardBody}>
                 <View style={styles.cardTopRow}>

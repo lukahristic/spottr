@@ -35,31 +35,18 @@ export default function HowItWorksScreen() {
         {/* Card 2 */}
         <View style={styles.card}>
           <Text style={styles.cardIcon}>🎯</Text>
-          <Text style={styles.cardTitle}>Set your status</Text>
-          <Text style={styles.cardBody}>Tell others what kind of session you're having.</Text>
-          <View style={styles.statusList}>
-            <View style={styles.statusRow}>
-              <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>Happy to Help</Text>
-                <Text style={styles.statusHint}>Open to sharing what you know.</Text>
+          <Text style={styles.cardTitle}>Set your vibe</Text>
+          <Text style={styles.cardBody}>Pick a chip that matches your session.</Text>
+          <View style={styles.chipRow}>
+            {['Locked in', 'Just showing up', 'In between sets', 'Taking it easy'].map((v) => (
+              <View key={v} style={styles.chip}>
+                <Text style={styles.chipText}>{v}</Text>
               </View>
-            </View>
-            <View style={styles.statusRow}>
-              <View style={[styles.dot, { backgroundColor: '#EAB308' }]} />
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>Need Guidance</Text>
-                <Text style={styles.statusHint}>Here to learn, or just need a hand.</Text>
-              </View>
-            </View>
-            <View style={styles.statusRow}>
-              <View style={[styles.dot, { backgroundColor: '#3B82F6' }]} />
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>Just Training</Text>
-                <Text style={styles.statusHint}>Heads down. Here for the work.</Text>
-              </View>
-            </View>
+            ))}
           </View>
+          <Text style={[styles.cardBody, { marginTop: 8 }]}>
+            Then flip <Text style={styles.bold}>Open to chat</Text> if you're up for a conversation.
+          </Text>
         </View>
 
         {/* Card 3 */}
@@ -136,12 +123,17 @@ const styles = StyleSheet.create({
   cardIcon:  { fontSize: 24 },
   cardTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   cardBody:  { fontSize: 14, color: colors.textSecondary, lineHeight: 21 },
-  statusList: { gap: 12, marginTop: 4 },
-  statusRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  dot:        { width: 10, height: 10, borderRadius: 5, marginTop: 4, flexShrink: 0 },
-  statusInfo: { flex: 1, gap: 2 },
-  statusLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  statusHint:  { fontSize: 13, color: colors.textSecondary },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  chip: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#D4CEC5',
+  },
+  chipText: { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
+  bold: { fontWeight: '700', color: colors.textPrimary },
   safetyNote: {
     backgroundColor: colors.surface,
     borderRadius: 12,

@@ -16,6 +16,8 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
+import { Avatar } from '../../components/Avatar'
+import { dicebearUrl } from '../../lib/avatar'
 import { colors } from '../../.claude/tokens/colors'
 
 type CheckIn = {
@@ -58,6 +60,7 @@ export default function MemberScreen() {
   const [sending, setSending]               = useState(false)
   const [error, setError]                   = useState<string | null>(null)
 
+  const [avatarUri, setAvatarUri]           = useState<string | undefined>(undefined)
   const [isBlocked, setIsBlocked]           = useState(false)
   const [blocking, setBlocking]             = useState(false)
   const [unblocking, setUnblocking]         = useState(false)
@@ -76,6 +79,15 @@ export default function MemberScreen() {
 
       setCheckin(checkinData as CheckIn | null)
       setCurrentUser(user)
+
+      if (checkinData?.user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avatar_seed')
+          .eq('id', checkinData.user_id)
+          .single()
+        if (profile?.avatar_seed) setAvatarUri(dicebearUrl(profile.avatar_seed))
+      }
 
       if (user && checkinData) {
         const [u1, u2] = [user.id, checkinData.user_id].sort()
@@ -290,8 +302,15 @@ export default function MemberScreen() {
             <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(checkin.name)}</Text>
+          <View style={styles.avatarWrap}>
+            <Avatar
+              seed={checkin.user_id}
+              name={checkin.name}
+              size={64}
+              bg={colors.accent}
+              fg={colors.textPrimary}
+              uri={avatarUri}
+            />
           </View>
 
           <Text style={styles.memberName}>{checkin.name}</Text>
@@ -468,13 +487,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
   back:   { marginBottom: 28 },
 
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarWrap: {
     marginBottom: 16,
   },
   avatarText: {

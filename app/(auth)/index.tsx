@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/(auth)/sign-up')}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryButtonText}>Get Started</Text>
+            <Text style={styles.primaryButtonText}>Create Account</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

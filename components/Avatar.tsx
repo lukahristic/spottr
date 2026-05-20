@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native'
+import { View, Text, Image } from 'react-native'
 
 const PALETTE = [
   { bg: '#1A2E1A', fg: '#22C55E' },
@@ -38,9 +38,19 @@ type Props = {
   size?: number
   bg?: string
   fg?: string
+  uri?: string
 }
 
-export function Avatar({ seed, name, size = 40, bg: bgOverride, fg: fgOverride }: Props) {
+export function Avatar({ seed, name, size = 40, bg: bgOverride, fg: fgOverride, uri }: Props) {
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    )
+  }
+
   const { bg: paletteBg, fg: paletteFg } = PALETTE[hashSeed(seed) % PALETTE.length]
   const bg = bgOverride ?? paletteBg
   const fg = fgOverride ?? paletteFg
