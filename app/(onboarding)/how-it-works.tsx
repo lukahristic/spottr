@@ -35,30 +35,18 @@ export default function HowItWorksScreen() {
         {/* Card 2 */}
         <View style={styles.card}>
           <Text style={styles.cardIcon}>🎯</Text>
-          <Text style={styles.cardTitle}>Set your status</Text>
-          <Text style={styles.cardBody}>Tell others what kind of session you're having.</Text>
-          <View style={styles.statusList}>
-            <View style={styles.statusRow}>
-              <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>Happy to Help</Text>
-                <Text style={styles.statusHint}>Open to sharing what you know.</Text>
+          <Text style={styles.cardTitle}>Set your vibe</Text>
+          <Text style={styles.cardBody}>Pick a chip that matches your session. No roles, just context.</Text>
+          <View style={styles.chipGrid}>
+            {['Locked in', 'Finding my rhythm', 'Taking it easy', 'In between sets'].map((v) => (
+              <View key={v} style={styles.chip}>
+                <Text style={styles.chipText}>{v}</Text>
               </View>
-            </View>
-            <View style={styles.statusRow}>
-              <View style={[styles.dot, { backgroundColor: '#EAB308' }]} />
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>Need Guidance</Text>
-                <Text style={styles.statusHint}>Here to learn, or just need a hand.</Text>
-              </View>
-            </View>
-            <View style={styles.statusRow}>
-              <View style={[styles.dot, { backgroundColor: '#3B82F6' }]} />
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>Just Training</Text>
-                <Text style={styles.statusHint}>Heads down. Here for the work.</Text>
-              </View>
-            </View>
+            ))}
+          </View>
+          <View style={styles.toggleRow}>
+            <View style={styles.togglePill} />
+            <Text style={styles.toggleLabel}>Open to chat — flip this on when you're open to connecting.</Text>
           </View>
         </View>
 
@@ -79,10 +67,10 @@ export default function HowItWorksScreen() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() => router.push('/(onboarding)/ready')}
+          onPress={completeOnboarding}
           activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>Got it</Text>
+          <Text style={styles.buttonText}>Let's go</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -136,12 +124,23 @@ const styles = StyleSheet.create({
   cardIcon:  { fontSize: 24 },
   cardTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   cardBody:  { fontSize: 14, color: colors.textSecondary, lineHeight: 21 },
-  statusList: { gap: 12, marginTop: 4 },
-  statusRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  dot:        { width: 10, height: 10, borderRadius: 5, marginTop: 4, flexShrink: 0 },
-  statusInfo: { flex: 1, gap: 2 },
-  statusLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  statusHint:  { fontSize: 13, color: colors.textSecondary },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  chip: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  chipText: { fontSize: 13, color: colors.textPrimary, fontWeight: '500' },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  togglePill: {
+    width: 32,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#DFAF3A',
+    flexShrink: 0,
+  },
+  toggleLabel: { fontSize: 13, color: colors.textSecondary, flex: 1, lineHeight: 18 },
   safetyNote: {
     backgroundColor: colors.surface,
     borderRadius: 12,
