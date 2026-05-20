@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -7,17 +7,21 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Switch,
 } from 'react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { supabase } from '../../lib/supabase'
+import { colors } from '../../.claude/tokens/colors'
 
-type Status = 'happy_to_help' | 'need_guidance' | 'just_training'
-type Goal =
-  | 'Learning the basics'
-  | 'Finding a training partner'
-  | 'Hitting my own program'
-  | 'Open to anything'
+type Vibe =
+  | 'Locked in'
+  | 'Finding my rhythm'
+  | 'Taking it easy'
+  | 'Quick session'
+  | 'In between sets'
+  | 'Just showing up'
 
 type Gym = {
   id: string
@@ -26,37 +30,48 @@ type Gym = {
   location: string
 }
 
-const STATUSES: { key: Status; label: string; color: string }[] = [
-  { key: 'happy_to_help', label: 'Happy to Help', color: '#22C55E' },
-  { key: 'need_guidance',  label: 'Need Guidance',  color: '#EAB308' },
-  { key: 'just_training',  label: 'Just Training',  color: '#3B82F6' },
+const VIBES: Vibe[] = [
+  'Locked in',
+  'Finding my rhythm',
+  'Taking it easy',
+  'Quick session',
+  'In between sets',
+  'Just showing up',
 ]
 
-const GOALS: Goal[] = [
-  'Learning the basics',
-  'Finding a training partner',
-  'Hitting my own program',
-  'Open to anything',
+const VIBE_PLACEHOLDERS = [
+  'leg day, send prayers',
+  'cardio? unfortunately',
+  'winging it today',
+  'pretending I have a plan',
+  'first time, be nice',
+  'lost but committed',
+  'Google said this works',
+  'manifesting the gains',
+  'not quitting, just resting',
+  'figuring it out slowly',
 ]
 
 export default function CheckInScreen() {
   const { gymSlug } = useLocalSearchParams<{ gymSlug?: string }>()
 
-  const [name, setName]           = useState('')
-  const [status, setStatus]       = useState<Status | null>(null)
-  const [goal, setGoal]           = useState<Goal | null>(null)
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState<string | null>(null)
+  const [name, setName]               = useState('')
+  const [vibe, setVibe]               = useState<Vibe>('Just showing up')
+  const [customVibe, setCustomVibe]   = useState('')
+  const [openToChat, setOpenToChat]   = useState(false)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState<string | null>(null)
 
-  // Gym list state (home state)
-  const [gyms, setGyms]           = useState<Gym[]>([])
+  const [gyms, setGyms]               = useState<Gym[]>([])
   const [gymsLoading, setGymsLoading] = useState(true)
-
-  // Selected gym — set from gymSlug param or existing active checkin
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null)
-  const [resolving, setResolving] = useState(true)
+  const [resolving, setResolving]     = useState(true)
 
-  // Load name from user metadata once
+  const placeholder = useMemo(
+    () => VIBE_PLACEHOLDERS[Math.floor(Math.random() * VIBE_PLACEHOLDERS.length)],
+    []
+  )
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       const savedName = user?.user_metadata?.name
@@ -64,7 +79,6 @@ export default function CheckInScreen() {
     })
   }, [])
 
-  // Load all active gyms for the gym list
   useEffect(() => {
     supabase
       .from('gyms')
@@ -77,14 +91,11 @@ export default function CheckInScreen() {
       })
   }, [])
 
-  // Resolve which gym to show in the form:
-  // 1. gymSlug param from deep link → look up that gym
-  // 2. User already has an active checkin → use that gym
-  // 3. Neither → show gym list
   useFocusEffect(
     useCallback(() => {
       async function resolve() {
         setResolving(true)
+        setOpenToChat(false)
 
         if (gymSlug) {
           const { data } = await supabase
@@ -132,10 +143,8 @@ export default function CheckInScreen() {
     }, [gymSlug])
   )
 
-  const canCheckIn = name.trim().length > 0 && status !== null && goal !== null && selectedGym !== null
-
   async function handleCheckIn() {
-    if (!canCheckIn || loading || !selectedGym) return
+    if (loading || !selectedGym) return
     setLoading(true)
     setError(null)
 
@@ -147,6 +156,14 @@ export default function CheckInScreen() {
       return
     }
 
+    const payload = {
+      name: name.trim(),
+      vibe,
+      custom_vibe: customVibe.trim() || null,
+      open_to_chat: openToChat,
+      gym_id: selectedGym.id,
+    }
+
     const { data: existing } = await supabase
       .from('checkins')
       .select('id')
@@ -155,13 +172,8 @@ export default function CheckInScreen() {
       .maybeSingle()
 
     const { error: dbError } = existing
-      ? await supabase
-          .from('checkins')
-          .update({ name: name.trim(), status, goal, gym_id: selectedGym.id })
-          .eq('id', existing.id)
-      : await supabase
-          .from('checkins')
-          .insert({ name: name.trim(), status, goal, user_id: user.id, gym_id: selectedGym.id })
+      ? await supabase.from('checkins').update(payload).eq('id', existing.id)
+      : await supabase.from('checkins').insert({ ...payload, user_id: user.id })
 
     setLoading(false)
 
@@ -173,34 +185,31 @@ export default function CheckInScreen() {
     router.replace('/live')
   }
 
-  // Loading state while resolving gym
   if (resolving || gymsLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator color="#FFFFFF" size="large" />
+          <ActivityIndicator color={colors.accent} size="large" />
         </View>
       </SafeAreaView>
     )
   }
 
-  // Home state: no gym selected — show gym list
   if (!selectedGym) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.heading}>Your Gym</Text>
-          <Text style={styles.subheading}>Choose a gym to get started.</Text>
-
+          <Text style={styles.heading}>Where are you training today?</Text>
+          <Text style={styles.subheading}>Pick your gym to get started.</Text>
 
           {gyms.length === 0 ? (
-            <Text style={styles.noGyms}>No gyms available.</Text>
+            <Text style={styles.noGyms}>No gyms available yet.</Text>
           ) : (
             <View style={styles.gymList}>
               {gyms.map((gym) => (
                 <TouchableOpacity
                   key={gym.id}
-                  style={styles.gymCard}
+                  style={styles.gymListCard}
                   onPress={() => router.push(`/gym/${gym.slug}`)}
                   activeOpacity={0.7}
                 >
@@ -208,7 +217,7 @@ export default function CheckInScreen() {
                     <Text style={styles.gymCardName}>{gym.name}</Text>
                     <Text style={styles.gymCardLocation}>{gym.location}</Text>
                   </View>
-                  <Text style={styles.gymCardArrow}>›</Text>
+                  <ChevronRight size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -218,94 +227,66 @@ export default function CheckInScreen() {
     )
   }
 
-  // Form state: gym selected
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.heading}>Check In</Text>
-        <Text style={styles.subheading}>Let others know you're here.</Text>
-
-        {/* Gym chip — locked */}
-        <View style={styles.gymChip}>
-          <Text style={styles.gymChipLabel}>📍</Text>
-          <View style={styles.gymChipInfo}>
-            <Text style={styles.gymChipName}>{selectedGym.name}</Text>
-            <Text style={styles.gymChipLocation}>{selectedGym.location}</Text>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.gymSelectedCard}>
+          <View style={styles.gymCardBody}>
+            <Text style={styles.gymCardName}>{selectedGym.name}</Text>
+            <Text style={styles.gymCardLocation}>{selectedGym.location}</Text>
           </View>
         </View>
 
-        <Text style={styles.label}>Your Name</Text>
+        <Text style={styles.sectionLabel}>Today's vibe</Text>
+        <View style={styles.chipRow}>
+          {VIBES.map((v) => (
+            <TouchableOpacity
+              key={v}
+              style={[styles.chip, vibe === v && styles.chipSelected]}
+              onPress={() => setVibe(v)}
+              activeOpacity={0.7}
+              disabled={loading}
+            >
+              <Text style={[styles.chipText, vibe === v && styles.chipTextSelected]}>{v}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <TextInput
-          style={styles.input}
-          placeholder="e.g. Alex"
-          placeholderTextColor="#555"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
+          style={styles.customInput}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
+          value={customVibe}
+          onChangeText={(t) => setCustomVibe(t.slice(0, 30))}
+          maxLength={30}
           returnKeyType="done"
           editable={!loading}
         />
+        <Text style={styles.charCount}>{customVibe.length}/30</Text>
 
-        <View style={styles.sectionDivider} />
-        <Text style={styles.label}>Today's Status</Text>
-        <View style={styles.optionGroup}>
-          {STATUSES.map((s) => {
-            const selected = status === s.key
-            return (
-              <TouchableOpacity
-                key={s.key}
-                style={[
-                  styles.optionCard,
-                  selected && { borderColor: s.color, backgroundColor: `${s.color}18` },
-                ]}
-                onPress={() => setStatus(s.key)}
-                activeOpacity={0.7}
-                disabled={loading}
-              >
-                <View style={[styles.optionDot, { backgroundColor: s.color }]} />
-                <Text style={[styles.optionLabel, selected && { color: s.color }]}>
-                  {s.label}
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-
-        <View style={styles.sectionDivider} />
-        <Text style={styles.label}>Today's Goal</Text>
-        <View style={styles.optionGroup}>
-          {GOALS.map((g) => {
-            const selected = goal === g
-            return (
-              <TouchableOpacity
-                key={g}
-                style={[styles.optionCard, selected && styles.optionCardSelected]}
-                onPress={() => setGoal(g)}
-                activeOpacity={0.7}
-                disabled={loading}
-              >
-                <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                  {g}
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
+        <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Openness</Text>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Open to chat</Text>
+          <Switch
+            value={openToChat}
+            onValueChange={setOpenToChat}
+            trackColor={{ false: '#C8C2BB', true: colors.accent }}
+            thumbColor="#FFFFFF"
+            disabled={loading}
+          />
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity
-          style={[styles.button, (!canCheckIn || loading) && styles.buttonDisabled]}
-          disabled={!canCheckIn || loading}
+          style={[styles.button, loading && styles.buttonDisabled]}
+          disabled={loading}
           onPress={handleCheckIn}
           activeOpacity={0.8}
         >
           {loading
-            ? <ActivityIndicator color="#111111" />
-            : <Text style={styles.buttonText}>Check In</Text>
+            ? <ActivityIndicator color={colors.textPrimary} />
+            : <Text style={styles.buttonText}>I'm in</Text>
           }
         </TouchableOpacity>
       </ScrollView>
@@ -314,126 +295,126 @@ export default function CheckInScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#111111' },
+  safe:   { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
+
   heading: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   subheading: {
     fontSize: 15,
-    color: '#888888',
+    color: colors.textSecondary,
     marginBottom: 32,
   },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#666666',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-    marginTop: 0,
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: '#1E1E1E',
-    marginBottom: 24,
-  },
-  noGyms: { fontSize: 15, color: '#555555' },
+  noGyms: { fontSize: 15, color: colors.textSecondary },
+
   gymList: { gap: 10 },
-  gymCard: {
+  gymListCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  gymSelectedCard: {
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 18,
-    gap: 12,
+    marginBottom: 28,
   },
   gymCardBody:     { flex: 1, gap: 3 },
-  gymCardName:     { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  gymCardLocation: { fontSize: 13, color: '#666666' },
-  gymCardArrow:    { fontSize: 20, color: '#444444' },
-  gymChip: {
+  gymCardName:     { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  gymCardLocation: { fontSize: 13, color: colors.textSecondary },
+
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+
+  chipRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-    marginBottom: 28,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
   },
-  gymChipLabel:    { fontSize: 18 },
-  gymChipInfo:     { flex: 1, gap: 2 },
-  gymChipName:     { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
-  gymChipLocation: { fontSize: 13, color: '#666666' },
-  input: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 28,
+  chip: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  optionGroup: {
-    gap: 10,
-    marginBottom: 28,
+  chipSelected: {
+    backgroundColor: colors.accent,
   },
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
+  chipText: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
-  optionCardSelected: {
-    borderColor: '#FFFFFF',
-    backgroundColor: '#FFFFFF18',
-  },
-  optionDot: { width: 10, height: 10, borderRadius: 5 },
-  optionLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#AAAAAA',
-  },
-  optionLabelSelected: {
-    color: '#FFFFFF',
+  chipTextSelected: {
+    color: colors.textPrimary,
     fontWeight: '600',
   },
+
+  customInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  charCount: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'right',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  toggleLabel: {
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+
   error: {
     fontSize: 14,
     color: '#EF4444',
-    marginBottom: 12,
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
   },
+
   button: {
-    backgroundColor: '#FFD54A',
-    borderRadius: 14,
-    paddingVertical: 18,
+    backgroundColor: '#DFAF3A',
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 24,
   },
   buttonDisabled: {
-    opacity: 0.3,
+    opacity: 0.4,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#111111',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
 })
