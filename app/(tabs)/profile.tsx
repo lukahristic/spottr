@@ -135,8 +135,10 @@ export default function ProfileScreen() {
         .eq('user_id', userId)
         .eq('is_active', true)
         .maybeSingle()
-        .then(({ data }) => setActiveCheckinId(data?.id ?? null))
-        .catch(() => setActiveCheckinId(null))
+        .then(
+          ({ data }) => setActiveCheckinId(data?.id ?? null),
+          () => setActiveCheckinId(null),
+        )
 
       loadBlockedUsers(userId).catch(() => setBlockedUsers([]))
     }, [user?.id])
