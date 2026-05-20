@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { colors } from '../../.claude/tokens/colors'
 
 async function completeOnboarding() {
   await AsyncStorage.setItem('spottr_onboarding_seen', 'true')
@@ -72,7 +73,7 @@ export default function HowItWorksScreen() {
 
         <View style={styles.safetyNote}>
           <Text style={styles.safetyNoteText}>
-            Only visible while you're here. Leave anytime.
+            Only visible while you're here.{'\n'}Leave anytime.
           </Text>
         </View>
 
@@ -81,7 +82,7 @@ export default function HowItWorksScreen() {
           onPress={() => router.push('/(onboarding)/ready')}
           activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <Text style={styles.buttonText}>Got it</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -91,7 +92,7 @@ export default function HowItWorksScreen() {
         >
           <Text style={styles.signInLinkText}>
             Already have an account?{' '}
-            <Text style={styles.signInHighlight}>Sign In</Text>
+            <Text style={styles.signInHighlight}>Sign in</Text>
           </Text>
         </TouchableOpacity>
 
@@ -101,7 +102,7 @@ export default function HowItWorksScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#111111' },
+  safe:   { flex: 1, backgroundColor: colors.background },
   scroll: { padding: 24, paddingBottom: 48 },
   header: {
     flexDirection: 'row',
@@ -112,55 +113,52 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#444444',
+    color: colors.textSecondary,
     letterSpacing: 1.5,
   },
   skip: {
     fontSize: 14,
-    color: '#444444',
+    color: colors.textSecondary,
   },
   heading: {
     fontSize: 30,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 28,
   },
   card: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 12,
     gap: 8,
   },
   cardIcon:  { fontSize: 24 },
-  cardTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
-  cardBody:  { fontSize: 14, color: '#888888', lineHeight: 21 },
+  cardTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  cardBody:  { fontSize: 14, color: colors.textSecondary, lineHeight: 21 },
   statusList: { gap: 12, marginTop: 4 },
   statusRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   dot:        { width: 10, height: 10, borderRadius: 5, marginTop: 4, flexShrink: 0 },
   statusInfo: { flex: 1, gap: 2 },
-  statusLabel: { fontSize: 14, fontWeight: '600', color: '#DDDDDD' },
-  statusHint:  { fontSize: 13, color: '#666666' },
+  statusLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  statusHint:  { fontSize: 13, color: colors.textSecondary },
   safetyNote: {
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#222222',
+    backgroundColor: colors.surface,
     borderRadius: 12,
+    borderWidth: 0,
     padding: 14,
     marginTop: 4,
     marginBottom: 24,
   },
   safetyNoteText: {
     fontSize: 13,
-    color: '#555555',
+    color: colors.textSecondary,
     lineHeight: 20,
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: '#DFAF3A',
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
@@ -168,10 +166,10 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111111',
+    color: colors.textPrimary,
     letterSpacing: 0.3,
   },
   signInLink:      { alignItems: 'center' },
-  signInLinkText:  { fontSize: 14, color: '#555555' },
-  signInHighlight: { color: '#888888', fontWeight: '600' },
+  signInLinkText:  { fontSize: 14, color: colors.textSecondary },
+  signInHighlight: { color: colors.textPrimary, fontWeight: '600' },
 })

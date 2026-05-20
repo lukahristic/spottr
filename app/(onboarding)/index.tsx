@@ -1,6 +1,7 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import { colors } from '../../.claude/tokens/colors'
 
 export default function OnboardingWelcomeScreen() {
   return (
@@ -8,12 +9,15 @@ export default function OnboardingWelcomeScreen() {
       <View style={styles.container}>
 
         <View style={styles.brand}>
-          <Text style={styles.logo}>SPOTTR</Text>
+          <Image
+            source={require('../../assets/spottr_logo.png')}
+            style={styles.logo}
+          />
           <Text style={styles.headline}>
-            Real people.{'\n'}Real gyms.{'\n'}Real connections.
+            Real people.{'\n'}Real gyms.
           </Text>
           <Text style={styles.body}>
-            No cold approaches. No pressure. Just real people at the same gym.
+            No cold approaches. No pressure.{'\n'}Just people at the same gym.
           </Text>
         </View>
 
@@ -33,7 +37,7 @@ export default function OnboardingWelcomeScreen() {
           >
             <Text style={styles.signInLinkText}>
               Already have an account?{' '}
-              <Text style={styles.signInHighlight}>Sign In</Text>
+              <Text style={styles.signInHighlight}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -44,7 +48,7 @@ export default function OnboardingWelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: '#111111' },
+  safe:      { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, padding: 28, justifyContent: 'space-between' },
   brand: {
     flex: 1,
@@ -53,20 +57,19 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   logo: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 6,
+    width: 180,
+    height: 80,
+    resizeMode: 'contain',
   },
   headline: {
-    fontSize: 38,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 46,
+    fontSize: 34,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    lineHeight: 42,
   },
   body: {
     fontSize: 16,
-    color: '#666666',
+    color: colors.textSecondary,
     lineHeight: 24,
   },
   actions: {
@@ -74,18 +77,18 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   button: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: '#DFAF3A',
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111111',
+    color: colors.textPrimary,
     letterSpacing: 0.3,
   },
   signInLink:      { alignItems: 'center' },
-  signInLinkText:  { fontSize: 14, color: '#555555' },
-  signInHighlight: { color: '#888888', fontWeight: '600' },
+  signInLinkText:  { fontSize: 14, color: colors.textSecondary },
+  signInHighlight: { color: colors.textPrimary, fontWeight: '600' },
 })

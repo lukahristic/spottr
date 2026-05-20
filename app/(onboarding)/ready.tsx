@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { colors } from '../../.claude/tokens/colors'
 
 async function completeOnboarding() {
   await AsyncStorage.setItem('spottr_onboarding_seen', 'true')
@@ -18,6 +19,7 @@ export default function ReadyScreen() {
           <Text style={styles.reason}>
             Now go be someone's reason to stay.
           </Text>
+          <Text style={styles.warmNote}>Everyone starts somewhere.</Text>
         </View>
 
         <View style={styles.actions}>
@@ -36,7 +38,7 @@ export default function ReadyScreen() {
           >
             <Text style={styles.signInLinkText}>
               Already have an account?{' '}
-              <Text style={styles.signInHighlight}>Sign In</Text>
+              <Text style={styles.signInHighlight}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -47,7 +49,7 @@ export default function ReadyScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: '#111111' },
+  safe:      { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, padding: 28, justifyContent: 'space-between' },
   message: {
     flex: 1,
@@ -58,32 +60,36 @@ const styles = StyleSheet.create({
   set: {
     fontSize: 44,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: -0.5,
   },
   reason: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '500',
-    color: '#666666',
-    lineHeight: 32,
+    color: colors.textSecondary,
+    lineHeight: 30,
+  },
+  warmNote: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   actions: {
     gap: 16,
     paddingBottom: 8,
   },
   button: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: '#DFAF3A',
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111111',
+    color: colors.textPrimary,
     letterSpacing: 0.3,
   },
   signInLink:      { alignItems: 'center' },
-  signInLinkText:  { fontSize: 14, color: '#555555' },
-  signInHighlight: { color: '#888888', fontWeight: '600' },
+  signInLinkText:  { fontSize: 14, color: colors.textSecondary },
+  signInHighlight: { color: colors.textPrimary, fontWeight: '600' },
 })
