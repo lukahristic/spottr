@@ -8,7 +8,9 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
+import { colors } from '../../.claude/tokens/colors'
 
 type Gym = {
   id: string
@@ -21,9 +23,9 @@ type Gym = {
 export default function GymLandingScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
 
-  const [gym, setGym]         = useState<Gym | null>(null)
-  const [count, setCount]     = useState<number>(0)
-  const [loading, setLoading] = useState(true)
+  const [gym, setGym]           = useState<Gym | null>(null)
+  const [count, setCount]       = useState<number>(0)
+  const [loading, setLoading]   = useState(true)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function GymLandingScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator color="#FFFFFF" size="large" />
+          <ActivityIndicator color={colors.accent} size="large" />
         </View>
       </SafeAreaView>
     )
@@ -70,7 +72,7 @@ export default function GymLandingScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+            <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.stateTitle}>Gym not found.</Text>
         </View>
@@ -83,7 +85,7 @@ export default function GymLandingScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+            <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.stateTitle}>This gym is no longer active.</Text>
         </View>
@@ -95,7 +97,7 @@ export default function GymLandingScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
+          <ChevronLeft size={22} color={colors.textSecondary} />
         </TouchableOpacity>
 
         <View style={styles.gymCard}>
@@ -106,7 +108,7 @@ export default function GymLandingScreen() {
             <View style={styles.countDot} />
             <Text style={styles.countText}>
               {count === 0
-                ? 'No one checked in yet'
+                ? 'No one here yet. Be the brave one.'
                 : count === 1
                 ? '1 member here now'
                 : `${count} members here now`}
@@ -129,36 +131,33 @@ export default function GymLandingScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: '#111111' },
+  safe:      { flex: 1, backgroundColor: colors.background },
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   container: { flex: 1, padding: 24 },
   back:      { marginBottom: 32 },
-  backText:  { fontSize: 15, color: '#888888' },
-  stateTitle: { fontSize: 16, fontWeight: '500', color: '#666666' },
+  stateTitle: { fontSize: 16, fontWeight: '500', color: colors.textSecondary },
   gymCard: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
     gap: 8,
     marginBottom: 24,
   },
-  gymName:     { fontSize: 26, fontWeight: '700', color: '#FFFFFF' },
-  gymLocation: { fontSize: 14, color: '#888888' },
+  gymName:     { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
+  gymLocation: { fontSize: 14, color: colors.textSecondary },
   countRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  countDot:    { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
-  countText:   { fontSize: 14, color: '#22C55E', fontWeight: '500' },
+  countDot:    { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  countText:   { fontSize: 14, color: colors.textSecondary },
   checkInButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: '#DFAF3A',
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
   checkInButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111111',
+    color: colors.textPrimary,
     letterSpacing: 0.3,
   },
 })
