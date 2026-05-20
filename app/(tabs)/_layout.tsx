@@ -10,11 +10,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { MapPinCheck, Zap, MessageCircle, User } from 'lucide-react-native'
+import { colors } from '../../.claude/tokens/colors'
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number }
 
 const ACCENT   = '#DFAF3A'
-const INACTIVE = '#555555'
+const INACTIVE = '#9A9186'
 
 const TABS: { name: string; label: string; Icon: React.ComponentType<IconProps> }[] = [
   { name: 'index',    label: 'Check In', Icon: MapPinCheck    },
@@ -81,7 +82,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               <View
                 style={[
                   styles.indicator,
-                  { backgroundColor: isFocused ? '#FFFFFF' : 'transparent' },
+                  { backgroundColor: isFocused ? ACCENT : 'transparent' },
                 ]}
               />
             </TouchableOpacity>
@@ -106,17 +107,17 @@ const styles = StyleSheet.create({
   // No position:absolute — so screen content never hides under the bar.
   // Background matches app so there's no colour gap beneath the pill.
   wrapper: {
-    backgroundColor: '#111111',
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingTop: 6,
   },
 
   pill: {
     flexDirection: 'row',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#EDEAE3',
     borderRadius: 36,
     borderWidth: 1,
-    borderColor: '#2C2C2C',
+    borderColor: '#D9D4CA',
     paddingVertical: 7,
     paddingHorizontal: 8,
     // iOS shadow
