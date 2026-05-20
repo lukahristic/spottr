@@ -1,7 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:docs.expo.dev)"
+      "WebFetch(domain:docs.expo.dev)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\" -Recurse -Depth 1 | Where-Object {$_.PSIsContainer} | Select-Object -ExpandProperty Name)",
+      "PowerShell(ls -Path \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\" -Directory -Exclude \"node_modules\" -ErrorAction SilentlyContinue | Where-Object {$_.Name -match \"types|schema|db\"})",
+      "Skill(supabase:supabase)",
+      "mcp__ide__getDiagnostics",
+      "PowerShell(supabase *)",
+      "PowerShell(tabs *)",
+      "mcp__plugin_supabase_supabase__list_projects",
+      "mcp__plugin_supabase_supabase__execute_sql",
+      "mcp__plugin_supabase_supabase__apply_migration",
+      "PowerShell(git *)",
+      "PowerShell(claude doctor *)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(npm install *)",
+      "PowerShell(cd \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\"; Select-String -Path \"node_modules/lucide-react-native/dist/lucide-react-native.d.ts\" -Pattern \"LucideProps|strokeWidth|interface Icon\" | Select-Object -First 20 | ForEach-Object { $_.Line })",
+      "PowerShell(auth *)",
+      "mcp__plugin_supabase_supabase__list_tables"
     ]
   }
 }

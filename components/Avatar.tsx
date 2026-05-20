@@ -36,10 +36,14 @@ type Props = {
   seed: string
   name: string
   size?: number
+  bg?: string
+  fg?: string
 }
 
-export function Avatar({ seed, name, size = 40 }: Props) {
-  const { bg, fg } = PALETTE[hashSeed(seed) % PALETTE.length]
+export function Avatar({ seed, name, size = 40, bg: bgOverride, fg: fgOverride }: Props) {
+  const { bg: paletteBg, fg: paletteFg } = PALETTE[hashSeed(seed) % PALETTE.length]
+  const bg = bgOverride ?? paletteBg
+  const fg = fgOverride ?? paletteFg
   const initials   = getInitials(name)
   const fontSize   = Math.round(size * 0.34)
 

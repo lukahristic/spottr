@@ -12,7 +12,9 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
+import { colors } from '../../.claude/tokens/colors'
 
 export default function SignInScreen() {
   const [email, setEmail]       = useState('')
@@ -52,17 +54,17 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+            <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <Text style={styles.heading}>Sign In</Text>
-          <Text style={styles.subheading}>Welcome back.</Text>
+          <Text style={styles.heading}>Good to see you.</Text>
+          <Text style={styles.subheading}>Pick up where you left off.</Text>
 
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
             placeholder="you@example.com"
-            placeholderTextColor="#555"
+            placeholderTextColor={colors.textSecondary}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -75,7 +77,7 @@ export default function SignInScreen() {
           <TextInput
             style={styles.input}
             placeholder="Your password"
-            placeholderTextColor="#555"
+            placeholderTextColor={colors.textSecondary}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -93,8 +95,8 @@ export default function SignInScreen() {
             activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color="#111111" />
-              : <Text style={styles.buttonText}>Sign In</Text>
+              ? <ActivityIndicator color={colors.textPrimary} />
+              : <Text style={styles.buttonText}>Let me in</Text>
             }
           </TouchableOpacity>
 
@@ -105,7 +107,7 @@ export default function SignInScreen() {
           >
             <Text style={styles.switchText}>
               Don't have an account?{' '}
-              <Text style={styles.switchHighlight}>Create one</Text>
+              <Text style={styles.switchHighlight}>Join us</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -115,53 +117,37 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#111111',
-  },
-  flex: {
-    flex: 1,
-  },
-  scroll: {
-    padding: 24,
-    paddingBottom: 48,
-  },
-  back: {
-    marginBottom: 32,
-  },
-  backText: {
-    fontSize: 15,
-    color: '#888888',
-  },
+  safe:  { flex: 1, backgroundColor: colors.background },
+  flex:  { flex: 1 },
+  scroll: { padding: 24, paddingBottom: 48 },
+  back:  { marginBottom: 32 },
   heading: {
     fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   subheading: {
     fontSize: 15,
-    color: '#888888',
+    color: colors.textSecondary,
     marginBottom: 36,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#888888',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    color: colors.textSecondary,
     marginBottom: 10,
     marginTop: 4,
   },
   input: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
+    borderColor: colors.surface,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 20,
   },
   error: {
@@ -170,31 +156,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   button: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#DFAF3A',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,
     marginBottom: 24,
   },
-  buttonDisabled: {
-    backgroundColor: '#2A2A2A',
-  },
+  buttonDisabled: { opacity: 0.4 },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111111',
+    color: colors.textPrimary,
     letterSpacing: 0.3,
   },
-  switchLink: {
-    alignItems: 'center',
-  },
-  switchText: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  switchHighlight: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
+  switchLink:      { alignItems: 'center' },
+  switchText:      { fontSize: 14, color: colors.textSecondary },
+  switchHighlight: { color: colors.textPrimary, fontWeight: '600' },
 })
