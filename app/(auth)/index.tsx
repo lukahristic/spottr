@@ -70,12 +70,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: 16,
     paddingVertical: 16,
-    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
+    textAlign: 'center',
   },
   secondaryButton: {
     paddingVertical: 16,
