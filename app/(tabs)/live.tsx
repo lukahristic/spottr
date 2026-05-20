@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
-import { Zap } from 'lucide-react-native'
+import { Pencil, Zap } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { Avatar } from '../../components/Avatar'
 import { colors } from '../../.claude/tokens/colors'
@@ -229,7 +229,10 @@ export default function LiveListScreen() {
             >
               <Text style={styles.headerName}>{myName ?? 'You'}</Text>
               {myVibeDisplay ? (
-                <Text style={styles.headerVibe}>{myVibeDisplay}</Text>
+                <View style={styles.headerVibeRow}>
+                  <Text style={styles.headerVibe}>{myVibeDisplay}</Text>
+                  <Pencil size={14} color={colors.textSecondary} strokeWidth={1.75} style={{ marginLeft: 4 }} />
+                </View>
               ) : null}
             </TouchableOpacity>
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -324,10 +327,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
+  headerVibeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   headerVibe: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginTop: 2,
   },
   error: { fontSize: 14, color: '#EF4444', marginTop: 12 },
 
