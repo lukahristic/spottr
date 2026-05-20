@@ -28,7 +28,14 @@
       "PowerShell(Get-ChildItem \"C:\\\\Program Files \\(x86\\)\" -Directory | Where-Object { $_.Name -match \"\\(?i\\)java|jdk\" } | Select-Object FullName; Get-ChildItem \"C:\\\\\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match \"\\(?i\\)java|jdk|zulu|corretto\" } | Select-Object FullName)",
       "Bash(winget install *)",
       "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\Microsoft\" -Directory | Where-Object { $_.Name -match \"jdk\" } | Select-Object FullName)",
-      "PowerShell(eas *)"
+      "PowerShell(eas *)",
+      "PowerShell(npx expo install expo-dev-client)",
+      "PowerShell(npx expo run:android)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; npx expo run:android)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; npx expo run:android 2>&1 | Select-Object -Last 30)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & \"$env:USERPROFILE\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" install -r \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\")",
+      "PowerShell(& \"$env:USERPROFILE\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" install -r \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; npx expo start --dev-client)"
     ]
   }
 }
