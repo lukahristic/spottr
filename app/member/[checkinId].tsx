@@ -13,23 +13,18 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
-import { Avatar } from '../../components/Avatar'
+import { colors } from '../../.claude/tokens/colors'
 
 type CheckIn = {
   id: string
   user_id: string
   name: string
-  status: 'happy_to_help' | 'need_guidance' | 'just_training'
-  goal: string
+  vibe: string
+  goal?: string | null
   is_active: boolean
-}
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  happy_to_help: { label: 'Happy to Help', color: '#22C55E' },
-  need_guidance:  { label: 'Need Guidance',  color: '#EAB308' },
-  just_training:  { label: 'Just Training',  color: '#3B82F6' },
 }
 
 const REPORT_REASONS = [
@@ -38,6 +33,19 @@ const REPORT_REASONS = [
   'Made me uneasy',
   'Other',
 ]
+
+function getInitials(name: string): string {
+  return (
+    name
+      .trim()
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '?'
+  )
+}
 
 export default function MemberScreen() {
   const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
@@ -50,7 +58,6 @@ export default function MemberScreen() {
   const [sending, setSending]               = useState(false)
   const [error, setError]                   = useState<string | null>(null)
 
-  // Safety
   const [isBlocked, setIsBlocked]           = useState(false)
   const [blocking, setBlocking]             = useState(false)
   const [unblocking, setUnblocking]         = useState(false)
@@ -71,7 +78,6 @@ export default function MemberScreen() {
       setCurrentUser(user)
 
       if (user && checkinData) {
-        // Normalize user pair (PostgreSQL CHECK constraint requires user_1 < user_2)
         const [u1, u2] = [user.id, checkinData.user_id].sort()
 
         const [{ data: existingThread }, { data: existingBlock }] = await Promise.all([
@@ -104,17 +110,12 @@ export default function MemberScreen() {
     setSending(true)
     setError(null)
 
-    console.log('[handleSend] start', { userId: currentUser.id, checkinUserId: checkin.user_id })
-
-    // Verify sender is still checked in
-    const { data: senderCheckin, error: checkinErr } = await supabase
+    const { data: senderCheckin } = await supabase
       .from('checkins')
       .select('id')
       .eq('user_id', currentUser.id)
       .eq('is_active', true)
       .maybeSingle()
-
-    console.log('[handleSend] step1 checkin check', { senderCheckin, checkinErr })
 
     if (!senderCheckin) {
       setError('Check in first, then send a message.')
@@ -123,17 +124,13 @@ export default function MemberScreen() {
     }
 
     const [u1, u2] = [currentUser.id, checkin.user_id].sort()
-    console.log('[handleSend] step2 user pair', { u1, u2 })
 
-    // Check for existing thread one more time (race condition guard)
-    const { data: existingThread, error: existingErr } = await supabase
+    const { data: existingThread } = await supabase
       .from('threads')
       .select('id')
       .eq('user_1', u1)
       .eq('user_2', u2)
       .maybeSingle()
-
-    console.log('[handleSend] step3 existing thread check', { existingThread, existingErr })
 
     if (existingThread) {
       setSending(false)
@@ -141,7 +138,6 @@ export default function MemberScreen() {
       return
     }
 
-    // Create new thread
     const { data: thread, error: threadError } = await supabase
       .from('threads')
       .insert({
@@ -153,27 +149,17 @@ export default function MemberScreen() {
       .select('id')
       .single()
 
-    console.log('[handleSend] step4 thread insert', {
-      thread,
-      threadError: threadError ? { message: threadError.message, code: threadError.code, details: threadError.details, hint: threadError.hint } : null,
-    })
-
     if (threadError || !thread) {
       setError('Something went wrong. Try again.')
       setSending(false)
       return
     }
 
-    // Insert intro message
     const { error: msgError } = await supabase.from('messages').insert({
       thread_id:    thread.id,
       sender_id:    currentUser.id,
       body:         text.trim(),
       message_type: 'intro',
-    })
-
-    console.log('[handleSend] step5 message insert', {
-      msgError: msgError ? { message: msgError.message, code: msgError.code, details: msgError.details, hint: msgError.hint } : null,
     })
 
     setSending(false)
@@ -265,7 +251,7 @@ export default function MemberScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator color="#FFFFFF" size="large" />
+          <ActivityIndicator color={colors.accent} size="large" />
         </View>
       </SafeAreaView>
     )
@@ -276,7 +262,7 @@ export default function MemberScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+            <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.stateTitle}>Check-in not found.</Text>
         </View>
@@ -284,7 +270,6 @@ export default function MemberScreen() {
     )
   }
 
-  const meta       = STATUS_META[checkin.status]
   const isOwnCard  = checkin.user_id === currentUser?.id
   const isInactive = !checkin.is_active
   const hasThread  = !!existingThreadId
@@ -302,23 +287,25 @@ export default function MemberScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+            <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          {/* Profile header */}
-          <Avatar seed={checkin.user_id} name={checkin.name} size={72} />
-          <View style={[styles.profileHeader, { marginTop: 16 }]}>
-            <Text style={styles.memberName}>{checkin.name}</Text>
-            <View style={[styles.statusBadge, { borderColor: `${meta.color}50` }]}>
-              <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
-              <Text style={[styles.statusLabel, { color: meta.color }]}>{meta.label}</Text>
-            </View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{getInitials(checkin.name)}</Text>
           </View>
-          <Text style={styles.memberGoal}>{checkin.goal}</Text>
+
+          <Text style={styles.memberName}>{checkin.name}</Text>
+
+          <View style={styles.vibeBadge}>
+            <Text style={styles.vibeBadgeText}>{checkin.vibe}</Text>
+          </View>
+
+          {checkin.goal ? (
+            <Text style={styles.memberGoal}>{checkin.goal}</Text>
+          ) : null}
 
           <View style={styles.divider} />
 
-          {/* States */}
           {isOwnCard && (
             <Text style={styles.stateTitle}>This is your check-in.</Text>
           )}
@@ -331,48 +318,37 @@ export default function MemberScreen() {
             <Text style={styles.stateTitle}>You've blocked this person.</Text>
           )}
 
-          {/* Existing thread — view conversation */}
           {!isBlocked && hasThread && (
             <View style={styles.threadBox}>
-              <Text style={styles.threadBoxLabel}>YOU'VE ALREADY REACHED OUT</Text>
-              <Text style={styles.threadBoxHint}>
-                Your conversation is waiting.
-              </Text>
+              <Text style={styles.threadBoxLabel}>You've already reached out</Text>
+              <Text style={styles.threadBoxHint}>Your conversation is waiting.</Text>
               <TouchableOpacity
                 style={styles.viewConvoBtn}
                 onPress={() => router.replace(`/conversation/${existingThreadId}`)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.viewConvoBtnText}>View Conversation</Text>
+                <Text style={styles.viewConvoBtnText}>View conversation</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Message form */}
           {showForm && (
             <View style={styles.form}>
               <Text style={styles.formLabel}>Send an intro</Text>
               <Text style={styles.formHint}>
-                One message to break the ice. Keep it friendly.
+                One message to start things off. Keep it real.
               </Text>
 
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.messageInput}
-                  placeholder="Hi! I noticed you're working on…"
-                  placeholderTextColor="#555"
-                  value={text}
-                  onChangeText={(v) => setText(v.slice(0, 150))}
-                  multiline
-                  editable={!sending}
-                />
-                <Text style={[
-                  styles.charCount,
-                  text.length >= 130 && styles.charCountWarn,
-                ]}>
-                  {text.length}/150
-                </Text>
-              </View>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="Hi! I noticed you're working on…"
+                placeholderTextColor={colors.textSecondary}
+                value={text}
+                onChangeText={(v) => setText(v.slice(0, 150))}
+                multiline
+                editable={!sending}
+              />
+              <Text style={styles.charCount}>{text.length}/150</Text>
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -383,14 +359,13 @@ export default function MemberScreen() {
                 activeOpacity={0.85}
               >
                 {sending
-                  ? <ActivityIndicator color="#111111" />
-                  : <Text style={styles.sendButtonText}>Send Intro</Text>
+                  ? <ActivityIndicator color={colors.textPrimary} />
+                  : <Text style={styles.sendButtonText}>Send intro</Text>
                 }
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Safety section */}
           {showSafety && (
             <>
               {reportDone ? (
@@ -423,16 +398,14 @@ export default function MemberScreen() {
                     </TouchableOpacity>
                   ))}
 
-                  <View style={styles.reportNoteWrapper}>
-                    <TextInput
-                      style={styles.reportNoteInput}
-                      placeholder="Anything else? (optional)"
-                      placeholderTextColor="#444444"
-                      value={reportNote}
-                      onChangeText={setReportNote}
-                      multiline
-                    />
-                  </View>
+                  <TextInput
+                    style={styles.reportNoteInput}
+                    placeholder="Anything else? (optional)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={reportNote}
+                    onChangeText={setReportNote}
+                    multiline
+                  />
 
                   <TouchableOpacity
                     style={[
@@ -444,8 +417,8 @@ export default function MemberScreen() {
                     activeOpacity={0.85}
                   >
                     {reporting
-                      ? <ActivityIndicator color="#111111" size="small" />
-                      : <Text style={styles.reportSubmitText}>Send Report</Text>
+                      ? <ActivityIndicator color={colors.textPrimary} size="small" />
+                      : <Text style={styles.reportSubmitText}>Send report</Text>
                     }
                   </TouchableOpacity>
 
@@ -462,14 +435,14 @@ export default function MemberScreen() {
                   {isBlocked ? (
                     <TouchableOpacity onPress={handleUnblock} disabled={unblocking} activeOpacity={0.6}>
                       {unblocking
-                        ? <ActivityIndicator color="#3A3A3A" size="small" />
+                        ? <ActivityIndicator color={colors.textSecondary} size="small" />
                         : <Text style={styles.safetyLink}>Unblock</Text>
                       }
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity onPress={handleBlock} disabled={blocking} activeOpacity={0.6}>
                       {blocking
-                        ? <ActivityIndicator color="#3A3A3A" size="small" />
+                        ? <ActivityIndicator color={colors.textSecondary} size="small" />
                         : <Text style={styles.safetyLink}>Block</Text>
                       }
                     </TouchableOpacity>
@@ -489,82 +462,92 @@ export default function MemberScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#111111' },
+  safe:   { flex: 1, backgroundColor: colors.background },
   flex:   { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   scroll: { padding: 24, paddingBottom: 48 },
-  back:     { marginBottom: 28 },
-  backText: { fontSize: 15, color: '#888888' },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 8,
-  },
-  memberName:  { fontSize: 28, fontWeight: '700', color: '#FFFFFF' },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 6,
-  },
-  statusDot:   { width: 8, height: 8, borderRadius: 4 },
-  statusLabel: { fontSize: 13, fontWeight: '600' },
-  memberGoal:  { fontSize: 15, color: '#888888' },
-  divider:     { height: 1, backgroundColor: '#2A2A2A', marginVertical: 28 },
-  stateTitle:  { fontSize: 16, fontWeight: '500', color: '#666666' },
+  back:   { marginBottom: 28 },
 
-  threadBox: { gap: 16 },
-  threadBoxLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#444444',
-    letterSpacing: 1,
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
-  threadBoxHint: { fontSize: 15, color: '#555555' },
+  avatarText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+
+  memberName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 10,
+  },
+
+  vibeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 10,
+  },
+  vibeBadgeText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+
+  memberGoal: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+
+  divider:    { height: 1, backgroundColor: colors.surface, marginVertical: 28 },
+  stateTitle: { fontSize: 16, fontWeight: '500', color: colors.textSecondary },
+
+  threadBox:      { gap: 12 },
+  threadBoxLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  threadBoxHint:  { fontSize: 14, color: colors.textSecondary },
   viewConvoBtn: {
     borderWidth: 1,
-    borderColor: '#FFFFFF30',
+    borderColor: colors.surface,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
+    marginTop: 4,
   },
-  viewConvoBtnText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  viewConvoBtnText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
 
   form:      { gap: 8 },
-  formLabel: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', marginBottom: 2 },
-  formHint:  { fontSize: 13, color: '#666666', marginBottom: 12 },
-  inputWrapper: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-  },
+  formLabel: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  formHint:  { fontSize: 14, color: colors.textSecondary, marginBottom: 12 },
   messageInput: {
-    fontSize: 15,
-    color: '#FFFFFF',
-    minHeight: 88,
-    textAlignVertical: 'top',
-  },
-  charCount:     { fontSize: 12, color: '#555555', textAlign: 'right', marginTop: 6 },
-  charCountWarn: { color: '#EAB308' },
-  error: { fontSize: 14, color: '#EF4444' },
-  sendButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
+    padding: 16,
+    fontSize: 15,
+    color: colors.textPrimary,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 4,
+  },
+  charCount: { fontSize: 12, color: colors.textSecondary, textAlign: 'right', marginBottom: 8 },
+  error:     { fontSize: 14, color: '#EF4444' },
+  sendButton: {
+    backgroundColor: '#DFAF3A',
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },
-  sendButtonDisabled: { backgroundColor: '#2A2A2A' },
-  sendButtonText: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: 0.3 },
+  sendButtonDisabled: { opacity: 0.4 },
+  sendButtonText:     { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
 
   safetyLinks: {
     flexDirection: 'row',
@@ -574,54 +557,52 @@ const styles = StyleSheet.create({
     marginTop: 48,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
+    borderTopColor: colors.surface,
   },
-  safetyLink:    { fontSize: 13, color: '#3A3A3A' },
-  safetyDivider: { fontSize: 13, color: '#2A2A2A' },
-  safetyState: { marginTop: 40, gap: 8 },
-  safetyStateTitle: { fontSize: 16, fontWeight: '600', color: '#555555' },
-  safetyStateBody:  { fontSize: 13, color: '#3A3A3A', lineHeight: 20 },
+  safetyLink:    { fontSize: 13, color: colors.textSecondary },
+  safetyDivider: { fontSize: 13, color: colors.textSecondary },
+  safetyState:   { marginTop: 40, gap: 8 },
+  safetyStateTitle: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+  safetyStateBody:  { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
+
   reportForm: {
     marginTop: 32,
     gap: 10,
     paddingTop: 24,
     borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
+    borderTopColor: colors.surface,
   },
-  reportFormLabel: { fontSize: 15, fontWeight: '600', color: '#888888', marginBottom: 4 },
+  reportFormLabel: { fontSize: 15, fontWeight: '600', color: colors.textSecondary, marginBottom: 4 },
   reasonCard: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
-  reasonCardSelected: { borderColor: '#FFFFFF', backgroundColor: '#FFFFFF0D' },
-  reasonText:         { fontSize: 14, color: '#555555' },
-  reasonTextSelected: { color: '#FFFFFF', fontWeight: '500' },
-  reportNoteWrapper: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 10,
-    padding: 12,
+  reasonCardSelected: { borderColor: colors.accent },
+  reasonText:         { fontSize: 14, color: colors.textSecondary },
+  reasonTextSelected: { color: colors.textPrimary, fontWeight: '500' },
+  reportNoteInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    color: colors.textPrimary,
+    minHeight: 60,
+    textAlignVertical: 'top',
     marginTop: 4,
   },
-  reportNoteInput: {
-    fontSize: 14,
-    color: '#AAAAAA',
-    minHeight: 56,
-    textAlignVertical: 'top',
-  },
   reportSubmitBtn: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: '#DFAF3A',
+    borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
   },
-  reportSubmitDisabled: { backgroundColor: '#2A2A2A' },
-  reportSubmitText:     { fontSize: 15, fontWeight: '700', color: '#111111' },
+  reportSubmitDisabled: { opacity: 0.4 },
+  reportSubmitText:     { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   cancelReport:         { alignItems: 'center', paddingVertical: 10 },
-  cancelReportText:     { fontSize: 14, color: '#3A3A3A' },
+  cancelReportText:     { fontSize: 14, color: colors.textSecondary },
 })
