@@ -43,9 +43,10 @@ export default function LiveListScreen() {
   const [refreshing, setRefreshing]     = useState(false)
   const [error, setError]               = useState<string | null>(null)
   const [blockedIds, setBlockedIds]     = useState<Set<string>>(new Set())
-  const [myName, setMyName]             = useState<string | null>(null)
-  const [myVibe, setMyVibe]             = useState<string | null>(null)
-  const [myCustomVibe, setMyCustomVibe] = useState<string | null>(null)
+  const [myName, setMyName]               = useState<string | null>(null)
+  const [myVibe, setMyVibe]               = useState<string | null>(null)
+  const [myCustomVibe, setMyCustomVibe]   = useState<string | null>(null)
+  const [myOpenToChat, setMyOpenToChat]   = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -66,7 +67,7 @@ export default function LiveListScreen() {
 
     const { data: myCheckin } = await supabase
       .from('checkins')
-      .select('id, gym_id, name, vibe, custom_vibe')
+      .select('id, gym_id, name, vibe, custom_vibe, open_to_chat')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle()
@@ -77,6 +78,7 @@ export default function LiveListScreen() {
       setMyName(null)
       setMyVibe(null)
       setMyCustomVibe(null)
+      setMyOpenToChat(false)
       return null
     }
 
@@ -84,6 +86,7 @@ export default function LiveListScreen() {
     setMyName(myCheckin.name)
     setMyVibe(myCheckin.vibe)
     setMyCustomVibe(myCheckin.custom_vibe)
+    setMyOpenToChat(myCheckin.open_to_chat ?? false)
     const gymId = myCheckin.gym_id
 
     const { data, error: dbError } = await supabase
@@ -234,6 +237,11 @@ export default function LiveListScreen() {
                   <Pencil size={14} color={colors.textSecondary} strokeWidth={1.75} style={{ marginLeft: 4 }} />
                 </View>
               ) : null}
+              {myOpenToChat ? (
+                <View style={styles.opennessChip}>
+                  <Text style={styles.opennessChipText}>Open to chat</Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
@@ -273,7 +281,14 @@ export default function LiveListScreen() {
                   ) : (
                     <View style={styles.cardVibeTextPlaceholder} />
                   )}
-                  <Text style={styles.cardTime}>{time}</Text>
+                  <View style={styles.cardBottomRight}>
+                    {item.open_to_chat ? (
+                      <View style={styles.cardOpennessChip}>
+                        <Text style={styles.cardOpennessChipText}>Open to chat</Text>
+                      </View>
+                    ) : null}
+                    <Text style={styles.cardTime}>{time}</Text>
+                  </View>
                 </View>
               </View>
             </TouchableOpacity>
@@ -372,5 +387,23 @@ const styles = StyleSheet.create({
   cardBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   cardVibeText:  { fontSize: 13, color: colors.textSecondary, flex: 1 },
   cardVibeTextPlaceholder: { flex: 1 },
+  cardBottomRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+  cardOpennessChip: {
+    backgroundColor: colors.statusOpen,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  cardOpennessChipText: { fontSize: 11, color: '#2B6B42', fontWeight: '500' },
   cardTime:      { fontSize: 12, color: colors.textSecondary, flexShrink: 0 },
+
+  opennessChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.statusOpen,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 4,
+  },
+  opennessChipText: { fontSize: 12, color: '#2B6B42', fontWeight: '500' },
 })

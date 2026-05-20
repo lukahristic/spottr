@@ -24,6 +24,8 @@ type CheckIn = {
   user_id: string
   name: string
   vibe: string
+  custom_vibe?: string | null
+  open_to_chat: boolean
   goal?: string | null
   is_active: boolean
 }
@@ -289,6 +291,16 @@ export default function MemberScreen() {
             <Text style={styles.vibeBadgeText}>{checkin.vibe}</Text>
           </View>
 
+          {checkin.custom_vibe ? (
+            <Text style={styles.memberCustomVibe}>{checkin.custom_vibe}</Text>
+          ) : null}
+
+          {checkin.open_to_chat ? (
+            <View style={styles.opennessChip}>
+              <Text style={styles.opennessChipText}>Open to chat</Text>
+            </View>
+          ) : null}
+
           {checkin.goal ? (
             <Text style={styles.memberGoal}>{checkin.goal}</Text>
           ) : null}
@@ -479,6 +491,27 @@ const styles = StyleSheet.create({
   vibeBadgeText: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+
+  memberCustomVibe: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+
+  opennessChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.statusOpen,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 8,
+  },
+  opennessChipText: {
+    fontSize: 13,
+    color: '#2B6B42',
+    fontWeight: '500',
   },
 
   memberGoal: {

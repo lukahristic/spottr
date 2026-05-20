@@ -18,6 +18,8 @@ export default function ProfileScreen() {
   const [user, setUser]                       = useState<User | null>(null)
   const [activeCheckinId, setActiveCheckinId] = useState<string | null>(null)
   const [currentVibe, setCurrentVibe]         = useState<string | null>(null)
+  const [currentCustomVibe, setCurrentCustomVibe] = useState<string | null>(null)
+  const [openToChat, setOpenToChat]           = useState(false)
   const [checkingOut, setCheckingOut]         = useState(false)
   const [signingOut, setSigningOut]           = useState(false)
   const userRef = useRef<User | null>(null)
@@ -36,7 +38,7 @@ export default function ProfileScreen() {
 
       supabase
         .from('checkins')
-        .select('id, vibe')
+        .select('id, vibe, custom_vibe, open_to_chat')
         .eq('user_id', userId)
         .eq('is_active', true)
         .maybeSingle()
@@ -44,10 +46,14 @@ export default function ProfileScreen() {
           ({ data }) => {
             setActiveCheckinId(data?.id ?? null)
             setCurrentVibe(data?.vibe ?? null)
+            setCurrentCustomVibe(data?.custom_vibe ?? null)
+            setOpenToChat(data?.open_to_chat ?? false)
           },
           () => {
             setActiveCheckinId(null)
             setCurrentVibe(null)
+            setCurrentCustomVibe(null)
+            setOpenToChat(false)
           },
         )
     }, [user?.id])
@@ -92,8 +98,17 @@ export default function ProfileScreen() {
         <Text style={styles.displayName}>{name}</Text>
 
         {currentVibe && (
-          <View style={styles.vibeChip}>
-            <Text style={styles.vibeChipText}>{currentVibe}</Text>
+          <View style={styles.statusRow}>
+            <View style={styles.vibeChip}>
+              <Text style={styles.vibeChipText}>
+                {currentCustomVibe || currentVibe}
+              </Text>
+            </View>
+            {openToChat && (
+              <View style={styles.opennessChip}>
+                <Text style={styles.opennessChipText}>Open to chat</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -159,6 +174,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
   vibeChip: {
     backgroundColor: colors.surface,
     borderRadius: 20,
@@ -168,6 +190,17 @@ const styles = StyleSheet.create({
   vibeChipText: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  opennessChip: {
+    backgroundColor: colors.statusOpen,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  opennessChipText: {
+    fontSize: 13,
+    color: '#2B6B42',
+    fontWeight: '500',
   },
 
   divider: {
