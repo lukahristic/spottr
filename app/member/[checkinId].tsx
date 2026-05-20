@@ -17,6 +17,7 @@ import { ChevronLeft } from 'lucide-react-native'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
+import { Avatar } from '../../components/Avatar'
 
 type CheckIn = {
   id: string
@@ -34,18 +35,6 @@ const REPORT_REASONS = [
   'Other',
 ]
 
-function getInitials(name: string): string {
-  return (
-    name
-      .trim()
-      .split(' ')
-      .filter(Boolean)
-      .map((w) => w[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || '?'
-  )
-}
 
 export default function MemberScreen() {
   const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
@@ -290,8 +279,8 @@ export default function MemberScreen() {
             <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(checkin.name)}</Text>
+          <View style={styles.avatarWrap}>
+            <Avatar seed={checkin.user_id} name={checkin.name} size={64} />
           </View>
 
           <Text style={styles.memberName}>{checkin.name}</Text>
@@ -468,19 +457,8 @@ const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
   back:   { marginBottom: 28 },
 
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarWrap: {
     marginBottom: 16,
-  },
-  avatarText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
   },
 
   memberName: {

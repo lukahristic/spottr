@@ -1,23 +1,5 @@
-import { View, Text } from 'react-native'
-
-const PALETTE = [
-  { bg: '#1A2E1A', fg: '#22C55E' },
-  { bg: '#1A1F2E', fg: '#3B82F6' },
-  { bg: '#251A2E', fg: '#A855F7' },
-  { bg: '#2E1A25', fg: '#EC4899' },
-  { bg: '#2E211A', fg: '#F97316' },
-  { bg: '#1A282E', fg: '#06B6D4' },
-  { bg: '#2E2A1A', fg: '#FFD54A' },
-  { bg: '#2E1A1A', fg: '#EF4444' },
-]
-
-function hashSeed(seed: string): number {
-  let h = 0
-  for (let i = 0; i < seed.length; i++) {
-    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0
-  }
-  return Math.abs(h)
-}
+import { useState } from 'react'
+import { View, Text, Image } from 'react-native'
 
 function getInitials(name: string): string {
   return (
@@ -32,6 +14,10 @@ function getInitials(name: string): string {
   )
 }
 
+function dicebearUrl(seed: string, size: number): string {
+  return `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(seed)}&size=${size * 2}`
+}
+
 type Props = {
   seed: string
   name: string
@@ -40,12 +26,10 @@ type Props = {
   fg?: string
 }
 
-export function Avatar({ seed, name, size = 40, bg: bgOverride, fg: fgOverride }: Props) {
-  const { bg: paletteBg, fg: paletteFg } = PALETTE[hashSeed(seed) % PALETTE.length]
-  const bg = bgOverride ?? paletteBg
-  const fg = fgOverride ?? paletteFg
-  const initials   = getInitials(name)
-  const fontSize   = Math.round(size * 0.34)
+export function Avatar({ seed, name, size = 40, bg = '#2E211A', fg = '#F97316' }: Props) {
+  const [failed, setFailed] = useState(false)
+  const initials = getInitials(name)
+  const fontSize = Math.round(size * 0.34)
 
   return (
     <View
@@ -56,9 +40,18 @@ export function Avatar({ seed, name, size = 40, bg: bgOverride, fg: fgOverride }
         backgroundColor: bg,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
       }}
     >
-      <Text style={{ fontSize, fontWeight: '700', color: fg }}>{initials}</Text>
+      {failed ? (
+        <Text style={{ fontSize, fontWeight: '700', color: fg }}>{initials}</Text>
+      ) : (
+        <Image
+          source={{ uri: dicebearUrl(seed, size) }}
+          style={{ width: size, height: size }}
+          onError={() => setFailed(true)}
+        />
+      )}
     </View>
   )
 }

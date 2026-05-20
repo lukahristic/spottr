@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
+import { Avatar } from '../../components/Avatar'
 import type { Thread } from '../../types/messaging'
 
 type ConversationItem = {
@@ -32,14 +33,6 @@ function formatTime(ts: string): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
 
 export default function MessagesScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
@@ -121,9 +114,7 @@ export default function MessagesScreen() {
         onPress={() => router.push(`/conversation/${item.threadId}`)}
         activeOpacity={0.7}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(item.otherUserName)}</Text>
-        </View>
+        <Avatar seed={item.otherUserId} name={item.otherUserName} size={44} />
         <View style={styles.cardContent}>
           <View style={styles.cardTop}>
             <Text style={styles.cardName} numberOfLines={1}>{item.otherUserName}</Text>
@@ -224,21 +215,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     gap: 12,
-  },
-
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
   },
 
   cardContent: { flex: 1, gap: 3 },
