@@ -17,7 +17,18 @@
       "PowerShell(npm install *)",
       "PowerShell(cd \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\"; Select-String -Path \"node_modules/lucide-react-native/dist/lucide-react-native.d.ts\" -Pattern \"LucideProps|strokeWidth|interface Icon\" | Select-Object -First 20 | ForEach-Object { $_.Line })",
       "PowerShell(auth *)",
-      "mcp__plugin_supabase_supabase__list_tables"
+      "mcp__plugin_supabase_supabase__list_tables",
+      "PowerShell(onboarding *)",
+      "PowerShell(java *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-Command *)",
+      "Bash(npx expo *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -Directory | Where-Object { $_.Name -match \"java|jdk|jre|adoptium|corretto|temurin|zulu|graal\" -or $_.Name -match \"\\(?i\\)java\" } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files \\(x86\\)\" -Directory | Where-Object { $_.Name -match \"\\(?i\\)java|jdk\" } | Select-Object FullName; Get-ChildItem \"C:\\\\\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match \"\\(?i\\)java|jdk|zulu|corretto\" } | Select-Object FullName)",
+      "Bash(winget install *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\Microsoft\" -Directory | Where-Object { $_.Name -match \"jdk\" } | Select-Object FullName)",
+      "PowerShell(eas *)"
     ]
   }
 }
