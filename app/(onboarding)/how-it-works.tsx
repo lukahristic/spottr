@@ -67,7 +67,7 @@ export default function HowItWorksScreen() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={completeOnboarding}
+          onPress={() => router.push('/(onboarding)/ready')}
           activeOpacity={0.85}
         >
           <Text style={styles.buttonText}>Let's go</Text>

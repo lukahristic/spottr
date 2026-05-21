@@ -4,9 +4,9 @@ import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors } from '../../.claude/tokens/colors'
 
-async function completeOnboarding() {
+async function completeOnboarding(destination: '/(auth)/sign-up' | '/(auth)/sign-in' = '/(auth)/sign-up') {
   await AsyncStorage.setItem('spottr_onboarding_seen', 'true')
-  router.replace('/(auth)')
+  router.replace(destination)
 }
 
 export default function ReadyScreen() {
@@ -25,7 +25,7 @@ export default function ReadyScreen() {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.button}
-            onPress={completeOnboarding}
+            onPress={() => completeOnboarding('/(auth)/sign-up')}
             activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>I'm Ready</Text>
@@ -33,7 +33,7 @@ export default function ReadyScreen() {
 
           <TouchableOpacity
             style={styles.signInLink}
-            onPress={completeOnboarding}
+            onPress={() => completeOnboarding('/(auth)/sign-in')}
             activeOpacity={0.6}
           >
             <Text style={styles.signInLinkText}>
