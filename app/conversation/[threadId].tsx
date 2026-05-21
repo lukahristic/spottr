@@ -19,18 +19,11 @@ import { User } from '@supabase/supabase-js'
 import { ChevronLeft } from 'lucide-react-native'
 import { colors } from '../../.claude/tokens/colors'
 import { supabase } from '../../lib/supabase'
-import type { Thread, Message, UserStatus } from '../../types/messaging'
+import type { Thread, Message } from '../../types/messaging'
 
 type OtherUser = {
   name: string
-  status: UserStatus | null
   isActive: boolean
-}
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  happy_to_help: { label: 'Happy to Help', color: '#22C55E' },
-  need_guidance:  { label: 'Need Guidance',  color: '#EAB308' },
-  just_training:  { label: 'Just Training',  color: '#3B82F6' },
 }
 
 const REPORT_REASONS = [
@@ -83,7 +76,6 @@ export default function ConversationScreen() {
   useEffect(() => {
     async function boot() {
       const { data: { user } } = await supabase.auth.getUser()
-      console.log('[Conv] auth ready, userId:', user?.id ?? 'none')
       setCurrentUser(user)
       currentUserRef.current = user
       if (user) await loadAll(user.id)
@@ -104,8 +96,6 @@ export default function ConversationScreen() {
         const { data: { user } } = await supabase.auth.getUser()
         if (blurred || !user) return
 
-        console.log('[Conv] subscribing realtime for thread:', threadId)
-
         const msgCh = supabase
           .channel('messages-thread-' + threadId)
           .on(
@@ -113,7 +103,6 @@ export default function ConversationScreen() {
             { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` },
             (payload) => {
               const incoming = payload.new as Message
-              console.log('[RT] message received:', incoming.id)
               setMessages((prev) => {
                 if (prev.some((m) => m.id === incoming.id)) return prev
                 return [...prev, incoming]
@@ -124,9 +113,7 @@ export default function ConversationScreen() {
               setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50)
             }
           )
-          .subscribe((status, err) => {
-            console.log('[RT] messages channel:', status, err ? String(err) : '')
-          })
+          .subscribe()
 
         const threadCh = supabase
           .channel('thread-update-' + threadId)
@@ -139,9 +126,7 @@ export default function ConversationScreen() {
               threadRef.current = updated
             }
           )
-          .subscribe((status, err) => {
-            console.log('[RT] thread channel:', status, err ? String(err) : '')
-          })
+          .subscribe()
 
         // If blur fired while channels were being created, remove them immediately.
         if (blurred) {
@@ -151,7 +136,6 @@ export default function ConversationScreen() {
         }
 
         cleanup = () => {
-          console.log('[Conv] blur: removing channels for thread:', threadId)
           supabase.removeChannel(msgCh)
           supabase.removeChannel(threadCh)
         }
@@ -193,7 +177,7 @@ export default function ConversationScreen() {
       await Promise.all([
         supabase
           .from('checkins')
-          .select('name, status, is_active')
+          .select('name, is_active')
           .eq('user_id', otherId)
           .order('checked_in_at', { ascending: false })
           .limit(1),
@@ -217,7 +201,7 @@ export default function ConversationScreen() {
       ])
 
     if (checkins?.[0]) {
-      setOtherUser({ name: checkins[0].name, status: checkins[0].status, isActive: checkins[0].is_active })
+      setOtherUser({ name: checkins[0].name, isActive: checkins[0].is_active })
     }
 
     setMessages((msgs as Message[]) ?? [])
@@ -326,12 +310,6 @@ export default function ConversationScreen() {
     setSending(true)
     setError(null)
 
-    console.log('[handleReply] insert attempt', {
-      thread_id: thread.id, sender_id: currentUser.id,
-      thread_user_1: thread.user_1, thread_user_2: thread.user_2,
-      unlocked_at: thread.unlocked_at,
-    })
-
     const { data: insertedMsg, error: dbError } = await supabase
       .from('messages')
       .insert({
@@ -342,13 +320,6 @@ export default function ConversationScreen() {
       })
       .select('id')
       .single()
-
-    console.log('[handleReply] result', {
-      insertedMsg,
-      error: dbError
-        ? { message: dbError.message, code: dbError.code, details: dbError.details, hint: dbError.hint }
-        : null,
-    })
 
     setSending(false)
     if (dbError) { setError('Something went wrong. Try again.'); return }
@@ -364,7 +335,6 @@ export default function ConversationScreen() {
   // ─── Render helpers ────────────────────────────────────────────────────────
 
   function renderHeader(showSafety = true) {
-    const statusMeta = otherUser?.status ? STATUS_META[otherUser.status] : null
     return (
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
@@ -374,14 +344,6 @@ export default function ConversationScreen() {
           <Text style={styles.headerName} numberOfLines={1}>
             {otherUser?.name ?? 'Unknown'}
           </Text>
-          {statusMeta && otherUser?.isActive && (
-            <View style={styles.headerStatus}>
-              <View style={[styles.headerStatusDot, { backgroundColor: statusMeta.color }]} />
-              <Text style={[styles.headerStatusLabel, { color: statusMeta.color }]}>
-                {statusMeta.label}
-              </Text>
-            </View>
-          )}
         </View>
         {showSafety && (
           <TouchableOpacity
@@ -749,9 +711,6 @@ const styles = StyleSheet.create({
   backText: { fontSize: 15, color: colors.textSecondary },
   headerCenter: { flex: 1, gap: 2 },
   headerName:   { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
-  headerStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  headerStatusDot:   { width: 7, height: 7, borderRadius: 3.5 },
-  headerStatusLabel: { fontSize: 12, fontWeight: '500' },
   moreBtn:     { paddingVertical: 4, paddingHorizontal: 2 },
   moreBtnText: { fontSize: 22, color: colors.textSecondary, letterSpacing: 2 },
 

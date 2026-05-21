@@ -59,6 +59,8 @@ export default function CheckInScreen() {
   const [vibe, setVibe]               = useState<Vibe>('Just showing up')
   const [customVibe, setCustomVibe]   = useState('')
   const [openToChat, setOpenToChat]   = useState(false)
+  const [womenVerified, setWomenVerified] = useState(false)
+  const [womenOnlyMode, setWomenOnlyMode] = useState(false)
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState<string | null>(null)
 
@@ -73,9 +75,17 @@ export default function CheckInScreen() {
   )
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      const savedName = user?.user_metadata?.name
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const savedName = user.user_metadata?.name
       if (savedName) setName(savedName)
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('women_verified')
+        .eq('id', user.id)
+        .maybeSingle()
+      setWomenVerified(profile?.women_verified ?? false)
     })
   }, [])
 
@@ -96,6 +106,7 @@ export default function CheckInScreen() {
       async function resolve() {
         setResolving(true)
         setOpenToChat(false)
+        setWomenOnlyMode(false)
 
         if (gymSlug) {
           const { data } = await supabase
@@ -161,6 +172,7 @@ export default function CheckInScreen() {
       vibe,
       custom_vibe: customVibe.trim() || null,
       open_to_chat: openToChat,
+      women_only_mode: womenVerified ? womenOnlyMode : false,
       gym_id: selectedGym.id,
     }
 
@@ -275,6 +287,22 @@ export default function CheckInScreen() {
             disabled={loading}
           />
         </View>
+
+        {womenVerified && (
+          <View style={[styles.toggleRow, { marginTop: 8 }]}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.toggleLabel}>Women's space</Text>
+              <Text style={styles.toggleHint}>Only visible to other verified women</Text>
+            </View>
+            <Switch
+              value={womenOnlyMode}
+              onValueChange={setWomenOnlyMode}
+              trackColor={{ false: '#C8C2BB', true: colors.accent }}
+              thumbColor="#FFFFFF"
+              disabled={loading}
+            />
+          </View>
+        )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -392,6 +420,10 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 14,
     color: colors.textPrimary,
+  },
+  toggleHint: {
+    fontSize: 11,
+    color: colors.textSecondary,
   },
 
   error: {

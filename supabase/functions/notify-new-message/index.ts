@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SERVICE_ROLE_KEY')!
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
 Deno.serve(async (req) => {
@@ -66,14 +66,18 @@ Deno.serve(async (req) => {
 
     const pushData = await pushRes.json()
 
-    // Clean up stale tokens
+    // Clean up stale tokens and log delivery failures
     const ticket = pushData?.data
-    if (ticket?.status === 'error' && ticket?.details?.error === 'DeviceNotRegistered') {
-      await supabase.from('push_tokens').delete().eq('user_id', recipientId)
+    if (ticket?.status === 'error') {
+      console.error('Push delivery failed:', JSON.stringify(ticket))
+      if (ticket?.details?.error === 'DeviceNotRegistered') {
+        await supabase.from('push_tokens').delete().eq('user_id', recipientId)
+      }
     }
 
     return new Response(JSON.stringify(pushData), { status: 200 })
   } catch (err) {
+    console.error('notify-new-message error:', String(err))
     return new Response(String(err), { status: 500 })
   }
 })

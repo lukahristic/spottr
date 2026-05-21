@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   View,
   Text,
@@ -9,54 +9,63 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
-import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
-import { Avatar } from '../../components/Avatar'
+import { Avatar, AvatarStyle } from '../../components/Avatar'
 import { colors } from '../../.claude/tokens/colors'
 
 export default function ProfileScreen() {
-  const [user, setUser]                       = useState<User | null>(null)
+  const [name, setName]                   = useState<string>('—')
+  const [userId, setUserId]               = useState<string | null>(null)
+  const [bio, setBio]                     = useState<string | null>(null)
+  const [avatarSeed, setAvatarSeed]       = useState<string | null>(null)
+  const [avatarStyle, setAvatarStyle]     = useState<AvatarStyle>('thumbs')
   const [activeCheckinId, setActiveCheckinId] = useState<string | null>(null)
   const [currentVibe, setCurrentVibe]         = useState<string | null>(null)
   const [currentCustomVibe, setCurrentCustomVibe] = useState<string | null>(null)
-  const [openToChat, setOpenToChat]           = useState(false)
-  const [checkingOut, setCheckingOut]         = useState(false)
-  const [signingOut, setSigningOut]           = useState(false)
-  const userRef = useRef<User | null>(null)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      userRef.current = user
-    })
-  }, [])
+  const [openToChat, setOpenToChat]       = useState(false)
+  const [womenVerified, setWomenVerified]         = useState(false)
+  const [verificationRequested, setVerificationRequested] = useState(false)
+  const [requestingVerification, setRequestingVerification] = useState(false)
+  const [checkingOut, setCheckingOut]     = useState(false)
+  const [signingOut, setSigningOut]       = useState(false)
 
   useFocusEffect(
     useCallback(() => {
-      const userId = userRef.current?.id ?? user?.id
-      if (!userId) return
+      async function refresh() {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
 
-      supabase
-        .from('checkins')
-        .select('id, vibe, custom_vibe, open_to_chat')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .maybeSingle()
-        .then(
-          ({ data }) => {
-            setActiveCheckinId(data?.id ?? null)
-            setCurrentVibe(data?.vibe ?? null)
-            setCurrentCustomVibe(data?.custom_vibe ?? null)
-            setOpenToChat(data?.open_to_chat ?? false)
-          },
-          () => {
-            setActiveCheckinId(null)
-            setCurrentVibe(null)
-            setCurrentCustomVibe(null)
-            setOpenToChat(false)
-          },
-        )
-    }, [user?.id])
+        setName(user.user_metadata?.name ?? '—')
+        setUserId(user.id)
+
+        const [{ data: profile }, { data: checkin }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('bio, avatar_seed, avatar_style, women_verified, verification_requested_at')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('checkins')
+            .select('id, vibe, custom_vibe, open_to_chat')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .maybeSingle(),
+        ])
+
+        setBio(profile?.bio ?? null)
+        setAvatarSeed(profile?.avatar_seed ?? null)
+        setAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
+        setWomenVerified(profile?.women_verified ?? false)
+        setVerificationRequested(!!profile?.verification_requested_at)
+
+        setActiveCheckinId(checkin?.id ?? null)
+        setCurrentVibe(checkin?.vibe ?? null)
+        setCurrentCustomVibe(checkin?.custom_vibe ?? null)
+        setOpenToChat(checkin?.open_to_chat ?? false)
+      }
+
+      refresh()
+    }, [])
   )
 
   async function handleCheckOut() {
@@ -72,12 +81,23 @@ export default function ProfileScreen() {
     router.replace('/(tabs)')
   }
 
+  async function handleRequestVerification() {
+    if (!userId || requestingVerification || verificationRequested) return
+    setRequestingVerification(true)
+    await supabase
+      .from('profiles')
+      .update({ verification_requested_at: new Date().toISOString() })
+      .eq('id', userId)
+    setRequestingVerification(false)
+    setVerificationRequested(true)
+  }
+
   async function handleSignOut() {
     setSigningOut(true)
     await supabase.auth.signOut()
   }
 
-  const name = user?.user_metadata?.name ?? '—'
+  const vibeDisplay = currentCustomVibe || currentVibe
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -85,24 +105,35 @@ export default function ProfileScreen() {
 
         <Text style={styles.headerName}>{name}</Text>
 
-        <View style={styles.avatarWrap}>
+        <TouchableOpacity
+          style={styles.avatarWrap}
+          onPress={() => router.push('/edit-profile')}
+          activeOpacity={0.85}
+        >
           <Avatar
-            seed={user?.id ?? 'default'}
+            seed={avatarSeed ?? userId ?? 'default'}
             name={name}
             size={80}
+            avatarStyle={avatarStyle}
             bg={colors.accent}
             fg={colors.textPrimary}
           />
-        </View>
+        </TouchableOpacity>
 
         <Text style={styles.displayName}>{name}</Text>
 
-        {currentVibe && (
+        {bio ? (
+          <Text style={styles.bio}>{bio}</Text>
+        ) : (
+          <TouchableOpacity onPress={() => router.push('/edit-profile')} activeOpacity={0.7}>
+            <Text style={styles.bioPlaceholder}>Add a short bio</Text>
+          </TouchableOpacity>
+        )}
+
+        {vibeDisplay ? (
           <View style={styles.statusRow}>
             <View style={styles.vibeChip}>
-              <Text style={styles.vibeChipText}>
-                {currentCustomVibe || currentVibe}
-              </Text>
+              <Text style={styles.vibeChipText}>{vibeDisplay}</Text>
             </View>
             {openToChat && (
               <View style={styles.opennessChip}>
@@ -110,11 +141,41 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
-        )}
+        ) : null}
 
         <View style={styles.divider} />
 
         <View style={styles.actionsGroup}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => router.push('/edit-profile')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.editBtnText}>Edit profile</Text>
+          </TouchableOpacity>
+
+          {womenVerified ? (
+            <View style={styles.womenVerifiedBadge}>
+              <Text style={styles.womenVerifiedText}>Women's space · Verified</Text>
+            </View>
+          ) : verificationRequested ? (
+            <View style={styles.womenPendingBadge}>
+              <Text style={styles.womenPendingText}>Women's space · Verification pending</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.womenRequestBtn, requestingVerification && styles.buttonDisabled]}
+              onPress={handleRequestVerification}
+              disabled={requestingVerification}
+              activeOpacity={0.7}
+            >
+              {requestingVerification
+                ? <ActivityIndicator color={colors.textPrimary} />
+                : <Text style={styles.womenRequestBtnText}>Request Women's space access</Text>
+              }
+            </TouchableOpacity>
+          )}
+
           {activeCheckinId !== null && (
             <TouchableOpacity
               style={[styles.checkOutButton, checkingOut && styles.buttonDisabled]}
@@ -171,7 +232,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+
+  bio: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  bioPlaceholder: {
+    fontSize: 14,
+    color: colors.accent,
+    textAlign: 'center',
+    marginBottom: 12,
   },
 
   statusRow: {
@@ -180,6 +256,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
+    marginTop: 4,
   },
   vibeChip: {
     backgroundColor: colors.surface,
@@ -187,21 +264,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  vibeChipText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
+  vibeChipText:  { fontSize: 13, color: colors.textSecondary },
   opennessChip: {
     backgroundColor: colors.statusOpen,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  opennessChipText: {
-    fontSize: 13,
-    color: '#2B6B42',
-    fontWeight: '500',
-  },
+  opennessChipText: { fontSize: 13, color: '#2B6B42', fontWeight: '500' },
 
   divider: {
     alignSelf: 'stretch',
@@ -212,17 +282,43 @@ const styles = StyleSheet.create({
 
   actionsGroup: { gap: 10, alignSelf: 'stretch' },
 
+  editBtn: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  editBtnText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+
+  womenRequestBtn: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  womenRequestBtnText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  womenVerifiedBadge: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  womenVerifiedText: { fontSize: 15, fontWeight: '600', color: '#2B6B42' },
+  womenPendingBadge: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  womenPendingText: { fontSize: 15, color: colors.textSecondary },
+
   checkOutButton: {
     backgroundColor: colors.surface,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  checkOutText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
+  checkOutText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
 
   signOutButton: {
     backgroundColor: colors.surface,
@@ -230,11 +326,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  signOutText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#C0392B',
-  },
+  signOutText: { fontSize: 15, fontWeight: '600', color: '#C0392B' },
 
   buttonDisabled: { opacity: 0.5 },
 })

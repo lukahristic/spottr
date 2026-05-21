@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Tabs } from 'expo-router'
 import {
   View,
@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { MapPinCheck, Zap, MessageCircle, User } from 'lucide-react-native'
 import { colors } from '../../.claude/tokens/colors'
+import { supabase } from '../../lib/supabase'
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number }
 
@@ -24,7 +25,7 @@ const TABS: { name: string; label: string; Icon: React.ComponentType<IconProps> 
   { name: 'profile',  label: 'Profile',  Icon: User           },
 ]
 
-function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+function FloatingTabBar({ state, navigation, unreadCount }: BottomTabBarProps & { unreadCount: number }) {
   const insets = useSafeAreaInsets()
 
   const scales = useRef(TABS.map((_, i) => new Animated.Value(i === state.index ? 1 : 0.85))).current
@@ -52,6 +53,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         {state.routes.map((route, index) => {
           const isFocused = state.index === index
           const tab = TABS.find(t => t.name === route.name) ?? TABS[index]
+          const showBadge = tab.name === 'messages' && unreadCount > 0
 
           const onPress = () => {
             const event = navigation.emit({
@@ -73,6 +75,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             >
               <Animated.View style={[styles.iconWrap, { transform: [{ scale: scales[index] }] }]}>
                 <tab.Icon size={20} strokeWidth={1.75} color={isFocused ? ACCENT : INACTIVE} />
+                {showBadge && (
+                  <View style={styles.badge} />
+                )}
               </Animated.View>
 
               <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]}>
@@ -94,9 +99,59 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabLayout() {
+  const [totalUnread, setTotalUnread] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    let channels: ReturnType<typeof supabase.channel>[] = []
+
+    async function fetchUnread(userId: string) {
+      const { data } = await supabase
+        .from('threads')
+        .select('user_1, unread_count_user_1, unread_count_user_2')
+        .or(`user_1.eq.${userId},user_2.eq.${userId}`)
+
+      if (cancelled) return
+
+      const total = (data ?? []).reduce((sum, t) => {
+        const count = t.user_1 === userId ? t.unread_count_user_1 : t.unread_count_user_2
+        return sum + (count ?? 0)
+      }, 0)
+
+      setTotalUnread(total)
+    }
+
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+
+      await fetchUnread(user.id)
+      if (cancelled) return
+
+      const ch1 = supabase
+        .channel('badge-u1-' + user.id)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `user_1=eq.${user.id}` }, () => fetchUnread(user.id))
+        .subscribe()
+
+      const ch2 = supabase
+        .channel('badge-u2-' + user.id)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `user_2=eq.${user.id}` }, () => fetchUnread(user.id))
+        .subscribe()
+
+      channels = [ch1, ch2]
+    }
+
+    init()
+
+    return () => {
+      cancelled = true
+      channels.forEach((ch) => supabase.removeChannel(ch))
+    }
+  }, [])
+
   return (
     <Tabs
-      tabBar={(props) => <FloatingTabBar {...props} />}
+      tabBar={(props) => <FloatingTabBar {...props} unreadCount={totalUnread} />}
       screenOptions={{ headerShown: false }}
     />
   )
@@ -138,6 +193,19 @@ const styles = StyleSheet.create({
 
   iconWrap: {
     position: 'relative',
+  },
+
+  badge: {
+    position: 'absolute',
+    top: -3,
+    right: -5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
+    // Pill background colour as border so the dot looks cut out of the icon
+    borderWidth: 1.5,
+    borderColor: '#EDEAE3',
   },
 
   label: {

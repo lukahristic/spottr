@@ -15,10 +15,7 @@ Notifications.setNotificationHandler({
 })
 
 export async function registerForPushNotificationsAsync(): Promise<void> {
-  if (!Device.isDevice) {
-    console.log('[PushToken] simulator — skipping')
-    return
-  }
+  if (!Device.isDevice) return
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -29,55 +26,35 @@ export async function registerForPushNotificationsAsync(): Promise<void> {
   }
 
   const { status: existing } = await Notifications.getPermissionsAsync()
-  console.log('[PushToken] permission status:', existing)
   let finalStatus = existing
 
   if (existing !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync()
     finalStatus = status
-    console.log('[PushToken] after request:', finalStatus)
   }
 
-  if (finalStatus !== 'granted') {
-    console.log('[PushToken] permission denied — aborting')
-    return
-  }
+  if (finalStatus !== 'granted') return
 
   // projectId is required in production builds (Expo SDK 49+).
   // Without it, getExpoPushTokenAsync throws and the token is never saved.
   const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined
-  if (!projectId) {
-    console.log('[PushToken] no EAS projectId in app.json extra.eas — cannot register in production')
-    return
-  }
+  if (!projectId) return
 
   let token: string
   try {
     const result = await Notifications.getExpoPushTokenAsync({ projectId })
     token = result.data
-    console.log('[PushToken] token:', token)
-  } catch (err) {
-    console.log('[PushToken] getExpoPushTokenAsync failed:', String(err))
+  } catch {
     return
   }
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    console.log('[PushToken] no authenticated user — skipping save')
-    return
-  }
-  console.log('[PushToken] saving for user:', user.id)
+  if (!user) return
 
-  const { error } = await supabase
+  await supabase
     .from('push_tokens')
     .upsert(
       { user_id: user.id, token, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     )
-
-  if (error) {
-    console.log('[PushToken] upsert failed:', error.code, error.message)
-  } else {
-    console.log('[PushToken] saved successfully')
-  }
 }

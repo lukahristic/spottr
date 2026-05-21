@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
 import { Pencil, Zap } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
-import { Avatar } from '../../components/Avatar'
+import { Avatar, AvatarStyle } from '../../components/Avatar'
 import { colors } from '../../.claude/tokens/colors'
 
 type CheckIn = {
@@ -22,6 +22,7 @@ type CheckIn = {
   vibe: string
   custom_vibe: string | null
   open_to_chat: boolean
+  women_only_mode: boolean
   checked_in_at: string
   is_active: boolean
   gym_id: string
@@ -43,10 +44,14 @@ export default function LiveListScreen() {
   const [refreshing, setRefreshing]     = useState(false)
   const [error, setError]               = useState<string | null>(null)
   const [blockedIds, setBlockedIds]     = useState<Set<string>>(new Set())
+  const [avatarMap, setAvatarMap]       = useState<Record<string, { seed: string; style: AvatarStyle }>>({})
+
   const [myName, setMyName]               = useState<string | null>(null)
   const [myVibe, setMyVibe]               = useState<string | null>(null)
   const [myCustomVibe, setMyCustomVibe]   = useState<string | null>(null)
   const [myOpenToChat, setMyOpenToChat]   = useState(false)
+  const [myWomenOnlyMode, setMyWomenOnlyMode] = useState(false)
+  const myWomenOnlyModeRef = useRef(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -67,7 +72,7 @@ export default function LiveListScreen() {
 
     const { data: myCheckin } = await supabase
       .from('checkins')
-      .select('id, gym_id, name, vibe, custom_vibe, open_to_chat')
+      .select('id, gym_id, name, vibe, custom_vibe, open_to_chat, women_only_mode')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle()
@@ -79,6 +84,8 @@ export default function LiveListScreen() {
       setMyVibe(null)
       setMyCustomVibe(null)
       setMyOpenToChat(false)
+      setMyWomenOnlyMode(false)
+      myWomenOnlyModeRef.current = false
       return null
     }
 
@@ -87,6 +94,9 @@ export default function LiveListScreen() {
     setMyVibe(myCheckin.vibe)
     setMyCustomVibe(myCheckin.custom_vibe)
     setMyOpenToChat(myCheckin.open_to_chat ?? false)
+    const womenMode = myCheckin.women_only_mode ?? false
+    setMyWomenOnlyMode(womenMode)
+    myWomenOnlyModeRef.current = womenMode
     const gymId = myCheckin.gym_id
 
     const { data, error: dbError } = await supabase
@@ -94,6 +104,7 @@ export default function LiveListScreen() {
       .select('*')
       .eq('is_active', true)
       .eq('gym_id', gymId)
+      .eq('women_only_mode', womenMode)
       .order('checked_in_at', { ascending: false })
 
     if (dbError) {
@@ -103,6 +114,20 @@ export default function LiveListScreen() {
 
     setError(null)
     setCheckins(data as CheckIn[])
+
+    const userIds = (data as CheckIn[]).map((c) => c.user_id).filter(Boolean) as string[]
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, avatar_seed, avatar_style')
+        .in('id', userIds)
+      const map: Record<string, { seed: string; style: AvatarStyle }> = {}
+      for (const p of profiles ?? []) {
+        map[p.id] = { seed: p.avatar_seed, style: (p.avatar_style as AvatarStyle) ?? 'thumbs' }
+      }
+      setAvatarMap(map)
+    }
+
     return gymId
   }
 
@@ -126,7 +151,10 @@ export default function LiveListScreen() {
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'checkins', filter: `gym_id=eq.${gymId}` },
           (payload) => {
-            setCheckins((prev) => [payload.new as CheckIn, ...prev])
+            const incoming = payload.new as CheckIn
+            if (incoming.women_only_mode === myWomenOnlyModeRef.current) {
+              setCheckins((prev) => [incoming, ...prev])
+            }
           }
         )
         .on(
@@ -191,8 +219,8 @@ export default function LiveListScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.notCheckedIn}>
           <Zap size={40} color={colors.accent} />
-          <Text style={styles.notCheckedInHeadline}>No one visible yet.</Text>
-          <Text style={styles.notCheckedInSubtitle}>Check in first to see who's here.</Text>
+          <Text style={styles.notCheckedInHeadline}>Who's here right now?</Text>
+          <Text style={styles.notCheckedInSubtitle}>Check in to see who's training at your gym.</Text>
           <TouchableOpacity
             style={styles.checkInButton}
             onPress={() => router.push('/')}
@@ -248,12 +276,14 @@ export default function LiveListScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>You're the first here.</Text>
-            <Text style={styles.emptyHint}>Others will show up as they check in.</Text>
+            <Text style={styles.emptyText}>You're first in.</Text>
+            <Text style={styles.emptyHint}>Others will appear as they check in.</Text>
           </View>
         }
         renderItem={({ item }) => {
           const time = relativeTime(item.checked_in_at)
+
+          const avatarInfo = item.user_id ? avatarMap[item.user_id] : undefined
 
           return (
             <TouchableOpacity
@@ -262,9 +292,10 @@ export default function LiveListScreen() {
               activeOpacity={0.7}
             >
               <Avatar
-                seed={item.user_id ?? item.id}
+                seed={avatarInfo?.seed ?? item.user_id ?? item.id}
                 name={item.name}
                 size={44}
+                avatarStyle={avatarInfo?.style ?? 'thumbs'}
                 bg={colors.accent}
                 fg={colors.textPrimary}
               />

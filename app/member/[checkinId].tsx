@@ -17,7 +17,7 @@ import { ChevronLeft } from 'lucide-react-native'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
-import { Avatar } from '../../components/Avatar'
+import { Avatar, AvatarStyle } from '../../components/Avatar'
 
 type CheckIn = {
   id: string
@@ -49,6 +49,10 @@ export default function MemberScreen() {
   const [sending, setSending]               = useState(false)
   const [error, setError]                   = useState<string | null>(null)
 
+  const [memberBio, setMemberBio]             = useState<string | null>(null)
+  const [memberAvatarSeed, setMemberAvatarSeed] = useState<string | null>(null)
+  const [memberAvatarStyle, setMemberAvatarStyle] = useState<AvatarStyle>('thumbs')
+
   const [isBlocked, setIsBlocked]           = useState(false)
   const [blocking, setBlocking]             = useState(false)
   const [unblocking, setUnblocking]         = useState(false)
@@ -67,6 +71,17 @@ export default function MemberScreen() {
 
       setCheckin(checkinData as CheckIn | null)
       setCurrentUser(user)
+
+      if (checkinData?.user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('bio, avatar_seed, avatar_style')
+          .eq('id', checkinData.user_id)
+          .maybeSingle()
+        setMemberBio(profile?.bio ?? null)
+        setMemberAvatarSeed(profile?.avatar_seed ?? null)
+        setMemberAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
+      }
 
       if (user && checkinData) {
         const [u1, u2] = [user.id, checkinData.user_id].sort()
@@ -282,10 +297,19 @@ export default function MemberScreen() {
           </TouchableOpacity>
 
           <View style={styles.avatarWrap}>
-            <Avatar seed={checkin.user_id} name={checkin.name} size={64} />
+            <Avatar
+              seed={memberAvatarSeed ?? checkin.user_id}
+              name={checkin.name}
+              size={64}
+              avatarStyle={memberAvatarStyle}
+            />
           </View>
 
           <Text style={styles.memberName}>{checkin.name}</Text>
+
+          {memberBio ? (
+            <Text style={styles.memberBio}>{memberBio}</Text>
+          ) : null}
 
           <View style={styles.vibeBadge}>
             <Text style={styles.vibeBadgeText}>{checkin.vibe}</Text>
@@ -299,10 +323,6 @@ export default function MemberScreen() {
             <View style={styles.opennessChip}>
               <Text style={styles.opennessChipText}>Open to chat</Text>
             </View>
-          ) : null}
-
-          {checkin.goal ? (
-            <Text style={styles.memberGoal}>{checkin.goal}</Text>
           ) : null}
 
           <View style={styles.divider} />
@@ -514,9 +534,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  memberGoal: {
+  memberBio: {
     fontSize: 14,
     color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 10,
   },
 
   divider:    { height: 1, backgroundColor: colors.surface, marginVertical: 28 },

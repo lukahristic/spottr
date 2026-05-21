@@ -11,13 +11,15 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
-import { Avatar } from '../../components/Avatar'
+import { Avatar, AvatarStyle } from '../../components/Avatar'
 import type { Thread } from '../../types/messaging'
 
 type ConversationItem = {
   threadId: string
   otherUserId: string
   otherUserName: string
+  otherAvatarSeed: string | null
+  otherAvatarStyle: AvatarStyle
   preview: string
   timestamp: string
   unreadCount: number
@@ -33,40 +35,27 @@ function formatTime(ts: string): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-
 export default function MessagesScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  useFocusEffect(
-    useCallback(() => {
-      load()
-    }, [])
-  )
-
-  async function load() {
-    setLoading(true)
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-
+  async function fetchConversations(userId: string) {
     const { data: threads } = await supabase
       .from('threads')
       .select('*')
-      .or(`user_1.eq.${user.id},user_2.eq.${user.id}`)
+      .or(`user_1.eq.${userId},user_2.eq.${userId}`)
       .order('latest_message_at', { ascending: false })
 
     if (!threads || threads.length === 0) {
       setConversations([])
-      setLoading(false)
       return
     }
 
     const threadList = threads as Thread[]
-    const otherUserIds = threadList.map((t) => (t.user_1 === user.id ? t.user_2 : t.user_1))
+    const otherUserIds = threadList.map((t) => (t.user_1 === userId ? t.user_2 : t.user_1))
     const threadIds = threadList.map((t) => t.id)
 
-    const [{ data: checkins }, { data: messages }] = await Promise.all([
+    const [{ data: checkins }, { data: messages }, { data: profiles }] = await Promise.all([
       supabase
         .from('checkins')
         .select('user_id, name')
@@ -77,6 +66,10 @@ export default function MessagesScreen() {
         .select('thread_id, body')
         .in('thread_id', threadIds)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select('id, avatar_seed, avatar_style')
+        .in('id', otherUserIds),
     ])
 
     const nameMap: Record<string, string> = {}
@@ -89,13 +82,21 @@ export default function MessagesScreen() {
       if (!previewMap[m.thread_id]) previewMap[m.thread_id] = m.body
     }
 
+    const avatarProfileMap: Record<string, { seed: string; style: AvatarStyle }> = {}
+    for (const p of profiles ?? []) {
+      avatarProfileMap[p.id] = { seed: p.avatar_seed, style: (p.avatar_style as AvatarStyle) ?? 'thumbs' }
+    }
+
     const items: ConversationItem[] = threadList.map((t) => {
-      const otherId = t.user_1 === user.id ? t.user_2 : t.user_1
-      const unread = t.user_1 === user.id ? t.unread_count_user_1 : t.unread_count_user_2
+      const otherId = t.user_1 === userId ? t.user_2 : t.user_1
+      const unread = t.user_1 === userId ? t.unread_count_user_1 : t.unread_count_user_2
+      const avatarInfo = avatarProfileMap[otherId]
       return {
         threadId: t.id,
         otherUserId: otherId,
         otherUserName: nameMap[otherId] ?? 'Someone',
+        otherAvatarSeed: avatarInfo?.seed ?? null,
+        otherAvatarStyle: avatarInfo?.style ?? 'thumbs',
         preview: previewMap[t.id] ?? '',
         timestamp: t.latest_message_at,
         unreadCount: unread ?? 0,
@@ -103,8 +104,52 @@ export default function MessagesScreen() {
     })
 
     setConversations(items)
-    setLoading(false)
   }
+
+  useFocusEffect(
+    useCallback(() => {
+      let blurred = false
+      let channels: ReturnType<typeof supabase.channel>[] = []
+
+      async function setup() {
+        setLoading(true)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+
+        await fetchConversations(user.id)
+        setLoading(false)
+
+        if (blurred) return
+
+        const refresh = () => fetchConversations(user.id)
+
+        const ch1 = supabase
+          .channel('inbox-u1-' + user.id)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `user_1=eq.${user.id}` }, refresh)
+          .subscribe()
+
+        const ch2 = supabase
+          .channel('inbox-u2-' + user.id)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `user_2=eq.${user.id}` }, refresh)
+          .subscribe()
+
+        if (blurred) {
+          supabase.removeChannel(ch1)
+          supabase.removeChannel(ch2)
+          return
+        }
+
+        channels = [ch1, ch2]
+      }
+
+      setup()
+
+      return () => {
+        blurred = true
+        channels.forEach((ch) => supabase.removeChannel(ch))
+      }
+    }, [])
+  )
 
   function renderCard({ item }: { item: ConversationItem }) {
     const hasUnread = item.unreadCount > 0
@@ -114,14 +159,23 @@ export default function MessagesScreen() {
         onPress={() => router.push(`/conversation/${item.threadId}`)}
         activeOpacity={0.7}
       >
-        <Avatar seed={item.otherUserId} name={item.otherUserName} size={44} />
+        <Avatar
+          seed={item.otherAvatarSeed ?? item.otherUserId}
+          name={item.otherUserName}
+          size={44}
+          avatarStyle={item.otherAvatarStyle}
+        />
         <View style={styles.cardContent}>
           <View style={styles.cardTop}>
-            <Text style={styles.cardName} numberOfLines={1}>{item.otherUserName}</Text>
+            <Text style={[styles.cardName, hasUnread && styles.cardNameUnread]} numberOfLines={1}>
+              {item.otherUserName}
+            </Text>
             <Text style={styles.cardTime}>{formatTime(item.timestamp)}</Text>
           </View>
           <View style={styles.cardBottom}>
-            <Text style={styles.cardPreview} numberOfLines={1}>{item.preview}</Text>
+            <Text style={[styles.cardPreview, hasUnread && styles.cardPreviewUnread]} numberOfLines={1}>
+              {item.preview}
+            </Text>
             {hasUnread && <View style={styles.unreadDot} />}
           </View>
         </View>
@@ -149,7 +203,7 @@ export default function MessagesScreen() {
         <View style={styles.empty}>
           <Text style={styles.emptyHeadline}>No conversations yet.</Text>
           <Text style={styles.emptySubtitle}>
-            Send an intro to someone at the gym to get started.
+            Tap someone on the live list to say hello.
           </Text>
         </View>
       ) : (
@@ -230,6 +284,9 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
   },
+  cardNameUnread: {
+    fontWeight: '700',
+  },
   cardTime: {
     fontSize: 12,
     color: colors.textSecondary,
@@ -245,6 +302,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     flex: 1,
+  },
+  cardPreviewUnread: {
+    color: colors.textPrimary,
+    fontWeight: '500',
   },
   unreadDot: {
     width: 8,

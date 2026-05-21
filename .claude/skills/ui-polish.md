@@ -1,155 +1,114 @@
-# UI Polish Skill
+# Skill: UI Polish
 
 Purpose:
-Review and refine existing UI without redesigning it.
 
-This skill is for improving:
+Refine existing UI without redesigning it.
+
+Improve:
+
 - spacing
 - hierarchy
-- typography
-- visual balance
 - consistency
-- polish
-- premium feel
 - responsiveness
+- empty states
+- subtle animations
+- visual balance
 
-Do NOT redesign unless explicitly asked.
+Preserve:
 
----
+- Spottr personality
+- existing layout
+- navigation structure
+- component patterns
 
-## Core Behavior
-
-When reviewing UI:
-
-1. Audit what feels visually off
-2. Identify friction or inconsistency
-3. Recommend improvements
-4. Implement only targeted polish
-5. Preserve existing design language
-
-Always explain:
-- what feels off
-- why it feels off
-- how the proposed change improves it
+Do not redesign unless asked.
 
 ---
 
-## Preserve Existing Identity
+## Spottr Feel
 
-Respect the current product.
+UI should feel:
 
-Do not change:
-- app personality
-- color system
-- layout structure
-- navigation model
-- interaction patterns
-
-Only refine them.
-
-Avoid:
-- random redesigns
-- unnecessary new components
-- trend-chasing UI
-- adding visual clutter
+- warm
+- approachable
+- playful but trustworthy
+- calm
+- human
+- never corporate
+- never intimidating
 
 ---
 
-## Review Criteria
+## Review Checklist
 
-### 1. Spacing & Layout
-Check for:
-- excessive empty space
-- cramped sections
-- uneven margins
-- inconsistent padding
-- alignment issues
-- poor visual balance
+### Layout
 
-### 2. Visual Hierarchy
 Check:
-- what draws attention first
-- whether important actions stand out
-- whether cards look too similar
-- whether users can scan quickly
 
-Improve with:
 - spacing
-- size
-- contrast
-- weight
-- surface treatment
+- alignment
+- empty space
+- padding consistency
 
-### 3. Typography
+### Hierarchy
+
 Check:
-- header sizing
-- subtitle contrast
-- readability
-- consistency
-- line height
+
+- what stands out first
+- CTA clarity
+- scanability
+- visual fatigue
+
+### Components
+
+Check:
+
+- card consistency
+- button consistency
+- icon sizing
+- input styling
+
+### Navigation
+
+Check:
+
+- safe area handling
+- gesture bar overlap
+- active states
+- touch targets
+
+### Empty States
+
+Check:
+
+- intentionality
+- warmth
+- subtle motion
 
 Prefer:
-- fewer type sizes
-- stronger hierarchy
-- calm readability
 
-### 4. Component Consistency
-Check:
-- border radius consistency
-- card treatment consistency
-- icon sizing
-- button styling
-- input field consistency
+- pulse dots
+- radar ripple
+- floating Spottr pins
 
-### 5. Navigation Polish
-Check:
-- active states
-- spacing
-- touch targets
-- safe area issues
-- tab bar weight
-- gesture bar overlap
+Avoid:
 
-### 6. Empty States
-Check:
-- intentionality
-- visual balance
-- clarity
-
-Avoid empty screens that feel unfinished.
-
-### 7. Brand Feel
-Ask:
-Does this feel like the product?
-
-For Spottr:
-- warm and approachable
-- playful but trustworthy
-- human and honest
-- a little self-aware
-- never corporate, never cold
-- not like a dating app
-- not like a generic gym app
-
-### 8. Responsiveness
-Check:
-- mobile spacing
-- small device layout issues
-- safe area handling
-- bottom navigation overlap
+- emojis
+- mascots
+- flashy motion
 
 ---
 
 ## Implementation Style
 
 Prefer:
+
 - small styling changes
-- spacing adjustments
-- better hierarchy
+- reusable improvements
 - subtle animations
-- component refinements
 
 Avoid:
+
 - major rewrites
 - dependency bloat
 
@@ -157,12 +116,9 @@ Avoid:
 
 ## Output Format
 
-Always respond with:
-
 1. UI audit
 2. What feels off
 3. Suggested improvements
 4. Files affected
-5. Styling changes
-6. Code changes
-7. Why this improves UX
+5. Code changes
+6. Why this improves UX

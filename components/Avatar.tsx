@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { View, Text, Image } from 'react-native'
 
+export type AvatarStyle = 'thumbs' | 'avataaars-neutral'
+
 function getInitials(name: string): string {
   return (
     name
@@ -14,8 +16,8 @@ function getInitials(name: string): string {
   )
 }
 
-function dicebearUrl(seed: string, size: number): string {
-  return `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(seed)}&size=${size * 2}`
+function dicebearUrl(seed: string, size: number, avatarStyle: AvatarStyle): string {
+  return `https://api.dicebear.com/9.x/${avatarStyle}/png?seed=${encodeURIComponent(seed)}&size=${size * 2}`
 }
 
 type Props = {
@@ -24,9 +26,17 @@ type Props = {
   size?: number
   bg?: string
   fg?: string
+  avatarStyle?: AvatarStyle
 }
 
-export function Avatar({ seed, name, size = 40, bg = '#2E211A', fg = '#F97316' }: Props) {
+export function Avatar({
+  seed,
+  name,
+  size = 40,
+  bg = '#2E211A',
+  fg = '#F97316',
+  avatarStyle = 'thumbs',
+}: Props) {
   const [failed, setFailed] = useState(false)
   const initials = getInitials(name)
   const fontSize = Math.round(size * 0.34)
@@ -47,7 +57,7 @@ export function Avatar({ seed, name, size = 40, bg = '#2E211A', fg = '#F97316' }
         <Text style={{ fontSize, fontWeight: '700', color: fg }}>{initials}</Text>
       ) : (
         <Image
-          source={{ uri: dicebearUrl(seed, size) }}
+          source={{ uri: dicebearUrl(seed, size, avatarStyle) }}
           style={{ width: size, height: size }}
           onError={() => setFailed(true)}
         />
