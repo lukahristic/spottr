@@ -128,6 +128,16 @@ export default function TabLayout() {
       await fetchUnread(user.id)
       if (cancelled) return
 
+      // Tear down any lingering channels with these names (survives hot reloads
+      // because the Supabase singleton outlives React component lifecycle).
+      const badgeTopics = new Set([`realtime:badge-u1-${user.id}`, `realtime:badge-u2-${user.id}`])
+      await Promise.all(
+        supabase.getChannels()
+          .filter(ch => badgeTopics.has(ch.topic))
+          .map(ch => supabase.removeChannel(ch))
+      )
+      if (cancelled) return
+
       const ch1 = supabase
         .channel('badge-u1-' + user.id)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `user_1=eq.${user.id}` }, () => fetchUnread(user.id))
