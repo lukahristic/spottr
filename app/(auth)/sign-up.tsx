@@ -81,7 +81,7 @@ export default function SignUpScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity onPress={() => router.back()} style={styles.back}>
+          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)')} style={styles.back}>
             <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
 
