@@ -15,9 +15,9 @@ export default function ReadyScreen() {
       <View style={styles.container}>
 
         <View style={styles.message}>
-          <Text style={styles.set}>You're set.</Text>
+          <Text style={styles.set}>You're all set.</Text>
           <Text style={styles.reason}>
-            Now go be someone's reason to stay.
+            A familiar face can change a workout.
           </Text>
           <Text style={styles.warmNote}>Everyone starts somewhere.</Text>
         </View>
@@ -72,13 +72,14 @@ const styles = StyleSheet.create({
   warmNote: {
     fontSize: 14,
     color: colors.textSecondary,
+    marginTop: 8,
   },
   actions: {
     gap: 16,
     paddingBottom: 8,
   },
   button: {
-    backgroundColor: '#DFAF3A',
+    backgroundColor: colors.accent,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
