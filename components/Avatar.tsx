@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, Image } from 'react-native'
 
-export type AvatarStyle = 'thumbs' | 'avataaars-neutral'
+export type AvatarStyle = 'thumbs' | 'avataaars-neutral' | 'personas'
 
 function getInitials(name: string): string {
   return (

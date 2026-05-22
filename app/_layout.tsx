@@ -43,6 +43,7 @@ export default function RootLayout() {
   const [session, setSession]               = useState<Session | null>(null)
   const [initializing, setInit]             = useState(true)
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
   const segments                            = useSegments()
   const notificationListener                = useRef<Notifications.EventSubscription | null>(null)
   const responseListener                    = useRef<Notifications.EventSubscription | null>(null)
@@ -61,6 +62,14 @@ export default function RootLayout() {
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true)
+        setSession(session)
+        return
+      }
+      if (event === 'USER_UPDATED') {
+        setPasswordRecovery(false)
+      }
       setSession(session)
       // Only register on sign-in and initial session load.
       // TOKEN_REFRESHED fires every ~60 min and does not need a new token.
@@ -87,6 +96,11 @@ export default function RootLayout() {
     const inAuth       = segments[0] === '(auth)'
     const inOnboarding = segments[0] === '(onboarding)'
 
+    if (passwordRecovery) {
+      router.replace('/(auth)/reset-password')
+      return
+    }
+
     if (session && (inAuth || inOnboarding)) {
       router.replace('/(tabs)')
       return
@@ -97,7 +111,7 @@ export default function RootLayout() {
         router.replace(seen === 'true' ? '/(auth)' : '/(onboarding)')
       })
     }
-  }, [session, initializing, onboardingDone, segments])
+  }, [session, initializing, onboardingDone, segments, passwordRecovery])
 
   if (initializing) return null
 
@@ -109,7 +123,6 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="gym/[slug]" />
         <Stack.Screen name="edit-profile" />
-        <Stack.Screen name="debug" />
       </Stack>
     </ErrorBoundary>
   )

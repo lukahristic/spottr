@@ -11,14 +11,15 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
+import { ChevronLeft, Lock } from 'lucide-react-native'
 import { supabase } from '../lib/supabase'
 import { Avatar, AvatarStyle } from '../components/Avatar'
 import { colors } from '../.claude/tokens/colors'
 
-const STYLES: { key: AvatarStyle; label: string }[] = [
+const STYLES: { key: AvatarStyle; label: string; premium?: boolean }[] = [
   { key: 'thumbs',            label: 'Thumbs'   },
   { key: 'avataaars-neutral', label: 'Avataaars' },
+  { key: 'personas',          label: 'Persona',  premium: true },
 ]
 
 const GRID_COUNT = 9
@@ -45,6 +46,14 @@ export default function EditProfileScreen() {
   const [avatarStyle, setAvatarStyle]     = useState<AvatarStyle>('thumbs')
   const [selectedSeed, setSelectedSeed]   = useState('')
   const [gridSeeds, setGridSeeds]         = useState<string[]>([])
+  const [showPersonaLock, setShowPersonaLock] = useState(false)
+
+  const [email, setEmail]                 = useState('')
+  const [emailConfirmed, setEmailConfirmed] = useState(false)
+  const [newEmail, setNewEmail]           = useState('')
+  const [emailSaving, setEmailSaving]     = useState(false)
+  const [emailSaveMsg, setEmailSaveMsg]   = useState<string | null>(null)
+  const [verificationSent, setVerificationSent] = useState(false)
 
   useEffect(() => {
     async function boot() {
@@ -53,6 +62,8 @@ export default function EditProfileScreen() {
 
       setUserId(user.id)
       setName(user.user_metadata?.name ?? '')
+      setEmail(user.email ?? '')
+      setEmailConfirmed(!!user.email_confirmed_at)
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -70,8 +81,35 @@ export default function EditProfileScreen() {
   }, [])
 
   function handleStyleSwitch(s: AvatarStyle) {
+    if (s === 'personas' && !emailConfirmed) {
+      setShowPersonaLock(v => !v)
+      return
+    }
+    setShowPersonaLock(false)
     setAvatarStyle(s)
-    // grid seeds stay — user sees the same seeds in the new style to compare
+  }
+
+  async function handleEmailUpdate() {
+    const trimmed = newEmail.trim().toLowerCase()
+    if (!trimmed || emailSaving) return
+    setEmailSaving(true)
+    setEmailSaveMsg(null)
+
+    const { error } = await supabase.auth.updateUser({ email: trimmed })
+    setEmailSaving(false)
+
+    if (error) {
+      setEmailSaveMsg("Couldn't update email. Try again.")
+    } else {
+      setEmailSaveMsg('Check your new inbox to confirm the change.')
+      setNewEmail('')
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!email) return
+    await supabase.auth.resend({ type: 'signup', email })
+    setVerificationSent(true)
   }
 
   function handleShuffle() {
@@ -151,19 +189,38 @@ export default function EditProfileScreen() {
         {/* Style chips */}
         <Text style={styles.sectionLabel}>Avatar style</Text>
         <View style={styles.styleRow}>
-          {STYLES.map((s) => (
-            <TouchableOpacity
-              key={s.key}
-              style={[styles.styleChip, avatarStyle === s.key && styles.styleChipSelected]}
-              onPress={() => handleStyleSwitch(s.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.styleChipText, avatarStyle === s.key && styles.styleChipTextSelected]}>
-                {s.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {STYLES.map((s) => {
+            const isLocked = s.premium && !emailConfirmed
+            const isSelected = avatarStyle === s.key
+            return (
+              <TouchableOpacity
+                key={s.key}
+                style={[styles.styleChip, isSelected && styles.styleChipSelected, isLocked && styles.styleChipLocked]}
+                onPress={() => handleStyleSwitch(s.key)}
+                activeOpacity={0.7}
+              >
+                {isLocked && <Lock size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />}
+                <Text style={[styles.styleChipText, isSelected && styles.styleChipTextSelected]}>
+                  {s.label}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
+        {showPersonaLock && (
+          <View style={styles.lockPanel}>
+            <Text style={styles.lockPanelText}>
+              Verify your email to unlock the Persona style.
+            </Text>
+            {verificationSent ? (
+              <Text style={styles.lockPanelSent}>Verification email sent. Check your inbox.</Text>
+            ) : (
+              <TouchableOpacity onPress={handleResendVerification} activeOpacity={0.7}>
+                <Text style={styles.lockPanelLink}>Send verification email</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Avatar grid */}
         <View style={styles.grid}>
@@ -222,6 +279,47 @@ export default function EditProfileScreen() {
         />
         <Text style={styles.charCount}>{bio.length}/100</Text>
 
+        <View style={styles.divider} />
+
+        {/* Email */}
+        <Text style={styles.sectionLabel}>Email</Text>
+        <View style={styles.emailCurrentRow}>
+          <Text style={styles.emailCurrentText}>{email}</Text>
+          {!emailConfirmed && (
+            <View style={styles.unverifiedBadge}>
+              <Text style={styles.unverifiedBadgeText}>Not verified</Text>
+            </View>
+          )}
+        </View>
+        <TextInput
+          style={[styles.input, { marginTop: 10 }]}
+          value={newEmail}
+          onChangeText={(v) => { setNewEmail(v); setEmailSaveMsg(null) }}
+          placeholder="New email address"
+          placeholderTextColor={colors.textSecondary}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          returnKeyType="done"
+        />
+        {emailSaveMsg ? (
+          <Text style={[styles.charCount, { color: emailSaveMsg.startsWith('Check') ? colors.accent : '#C0392B' }]}>
+            {emailSaveMsg}
+          </Text>
+        ) : null}
+        <TouchableOpacity
+          style={[styles.updateEmailBtn, (!newEmail.trim() || emailSaving) && styles.saveBtnDisabled]}
+          disabled={!newEmail.trim() || emailSaving}
+          onPress={handleEmailUpdate}
+          activeOpacity={0.85}
+        >
+          {emailSaving
+            ? <ActivityIndicator color={colors.textPrimary} />
+            : <Text style={styles.saveBtnText}>Update email</Text>
+          }
+        </TouchableOpacity>
+
+        <View style={styles.divider} />
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity
@@ -278,10 +376,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1.5,
     borderColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   styleChipSelected: {
     borderColor: colors.accent,
     backgroundColor: colors.surface,
+  },
+  styleChipLocked: {
+    opacity: 0.6,
   },
   styleChipText: {
     fontSize: 14,
@@ -291,6 +394,58 @@ const styles = StyleSheet.create({
   styleChipTextSelected: {
     color: colors.textPrimary,
     fontWeight: '600',
+  },
+  lockPanel: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 4,
+    marginBottom: 8,
+    gap: 8,
+  },
+  lockPanelText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  lockPanelLink: {
+    fontSize: 13,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  lockPanelSent: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  emailCurrentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  emailCurrentText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  unverifiedBadge: {
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  unverifiedBadgeText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  updateEmailBtn: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
 
   grid: {

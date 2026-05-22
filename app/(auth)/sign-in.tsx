@@ -12,15 +12,16 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
 
 export default function SignInScreen() {
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState<string | null>(null)
+  const [email, setEmail]             = useState('')
+  const [password, setPassword]       = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState<string | null>(null)
 
   const canSubmit = email.trim().length > 0 && password.length > 0
 
@@ -81,17 +82,38 @@ export default function SignInScreen() {
           />
 
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Your password"
-            placeholderTextColor={colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            returnKeyType="done"
-            onSubmitEditing={handleSignIn}
-            editable={!loading}
-          />
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.inputInner}
+              placeholder="Your password"
+              placeholderTextColor={colors.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              returnKeyType="done"
+              onSubmitEditing={handleSignIn}
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword(v => !v)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {showPassword
+                ? <EyeOff size={20} color={colors.textSecondary} />
+                : <Eye size={20} color={colors.textSecondary} />
+              }
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.forgotLink}
+            onPress={() => router.push('/(auth)/forgot-password')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -157,6 +179,26 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 20,
   },
+  inputWrap: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surface,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingRight: 8,
+  },
+  inputInner: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  eyeBtn: { padding: 8 },
+  forgotLink: { alignSelf: 'flex-end', marginBottom: 20 },
+  forgotText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
   error: {
     fontSize: 14,
     fontWeight: '500',
