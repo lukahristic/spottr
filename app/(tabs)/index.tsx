@@ -13,7 +13,6 @@ import {
 import { ChevronRight, MapPin } from 'lucide-react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
-import * as Location from 'expo-location'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
 
@@ -183,6 +182,8 @@ export default function CheckInScreen() {
     const gym = selectedGym!
     if (gym.latitude === null || gym.longitude === null) return true
 
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Location = require('expo-location') as typeof import('expo-location')
     const { status } = await Location.getForegroundPermissionsAsync()
 
     if (status === 'denied') {
@@ -300,6 +301,8 @@ export default function CheckInScreen() {
 
   async function handleLocationPromptAllow() {
     setShowLocationPrompt(false)
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Location = require('expo-location') as typeof import('expo-location')
     const { status } = await Location.requestForegroundPermissionsAsync()
     if (status === 'granted') {
       setLoading(true)
