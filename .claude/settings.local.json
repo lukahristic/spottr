@@ -35,7 +35,11 @@
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; npx expo run:android 2>&1 | Select-Object -Last 30)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & \"$env:USERPROFILE\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" install -r \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\")",
       "PowerShell(& \"$env:USERPROFILE\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" install -r \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\")",
-      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; npx expo start --dev-client)"
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; npx expo start --dev-client)",
+      "Bash(pandoc \"C:\\\\Users\\\\USER\\\\Downloads\\\\Spottr Docs\\\\Spottr_BusinessDoc_2026.docx\" -t markdown)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\USER\\\\Claude Code Start Ups\\\\spottr\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)"
     ]
   }
 }

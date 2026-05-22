@@ -10,13 +10,9 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
 
-  const { data: adminRow } = await supabase
-    .from('gym_admins')
-    .select('gym_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  const { data: gymId } = await supabase.rpc('get_my_admin_gym_id')
 
-  if (!adminRow) {
+  if (!gymId) {
     return (
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center">
@@ -33,7 +29,7 @@ export default async function DashboardPage() {
   const { data: gym } = await supabase
     .from('gyms')
     .select('id, name, location, latitude, longitude, checkin_radius_m, gym_code')
-    .eq('id', adminRow.gym_id)
+    .eq('id', gymId)
     .maybeSingle()
 
   const { data: pendingProfiles } = await supabase
