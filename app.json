@@ -13,7 +13,10 @@
       "backgroundColor": "#111111"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Spottr uses your location to confirm you're at the gym. It's never stored."
+      }
     },
     "android": {
       "package": "com.spottr.app",
@@ -23,7 +26,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["ACCESS_FINE_LOCATION"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,7 +40,8 @@
           "icon": "./assets/icon.png",
           "color": "#111111"
         }
-      ]
+      ],
+      "expo-location"
     ],
     "extra": {
       "router": {},

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   Switch,
+  Modal,
 } from 'react-native'
-import { ChevronRight } from 'lucide-react-native'
+import { ChevronRight, MapPin } from 'lucide-react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
+import * as Location from 'expo-location'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
 
@@ -28,6 +30,10 @@ type Gym = {
   name: string
   slug: string
   location: string
+  latitude: number | null
+  longitude: number | null
+  checkin_radius_m: number
+  gym_code: string | null
 }
 
 const VIBES: Vibe[] = [
@@ -69,6 +75,11 @@ export default function CheckInScreen() {
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null)
   const [resolving, setResolving]     = useState(true)
 
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false)
+  const [gymCodeInput, setGymCodeInput]             = useState('')
+  const [showGymCodeFallback, setShowGymCodeFallback] = useState(false)
+  const locationVerifiedRef = useRef(false)
+
   const placeholder = useMemo(
     () => VIBE_PLACEHOLDERS[Math.floor(Math.random() * VIBE_PLACEHOLDERS.length)],
     []
@@ -92,7 +103,7 @@ export default function CheckInScreen() {
   useEffect(() => {
     supabase
       .from('gyms')
-      .select('id, name, slug, location')
+      .select('id, name, slug, location, latitude, longitude, checkin_radius_m, gym_code')
       .eq('is_active', true)
       .order('name')
       .then(({ data }) => {
@@ -107,11 +118,14 @@ export default function CheckInScreen() {
         setResolving(true)
         setOpenToChat(false)
         setWomenOnlyMode(false)
+        setGymCodeInput('')
+        setShowGymCodeFallback(false)
+        locationVerifiedRef.current = false
 
         if (gymSlug) {
           const { data } = await supabase
             .from('gyms')
-            .select('id, name, slug, location')
+            .select('id, name, slug, location, latitude, longitude, checkin_radius_m, gym_code')
             .eq('slug', gymSlug)
             .eq('is_active', true)
             .maybeSingle()
@@ -138,7 +152,7 @@ export default function CheckInScreen() {
         if (existing?.gym_id) {
           const { data: gym } = await supabase
             .from('gyms')
-            .select('id, name, slug, location')
+            .select('id, name, slug, location, latitude, longitude, checkin_radius_m, gym_code')
             .eq('id', existing.gym_id)
             .maybeSingle()
 
@@ -154,8 +168,95 @@ export default function CheckInScreen() {
     }, [gymSlug])
   )
 
+  function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6_371_000
+    const toRad = (d: number) => (d * Math.PI) / 180
+    const dLat = toRad(lat2 - lat1)
+    const dLon = toRad(lon2 - lon1)
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  }
+
+  async function doLocationCheck(): Promise<boolean> {
+    const gym = selectedGym!
+    if (gym.latitude === null || gym.longitude === null) return true
+
+    const { status } = await Location.getForegroundPermissionsAsync()
+
+    if (status === 'denied') {
+      setShowGymCodeFallback(true)
+      setError("Location access was denied. Enter the gym code to check in.")
+      return false
+    }
+
+    if (status === 'undetermined') {
+      setShowLocationPrompt(true)
+      return false
+    }
+
+    let coords: { latitude: number; longitude: number } | null = null
+    try {
+      const timeout = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 8_000)
+      )
+      const result = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        timeout,
+      ]) as Location.LocationObject
+      coords = result.coords
+    } catch {
+      setShowGymCodeFallback(true)
+      setError("Couldn't get your location. Enter the gym code instead.")
+      return false
+    }
+
+    const dist = haversineMeters(
+      coords.latitude,
+      coords.longitude,
+      gym.latitude,
+      gym.longitude
+    )
+
+    if (dist > gym.checkin_radius_m) {
+      setShowGymCodeFallback(true)
+      setError(`You don't appear to be at ${gym.name}. Try the gym code instead.`)
+      return false
+    }
+
+    return true
+  }
+
+  async function handleGymCode() {
+    if (!selectedGym) return
+    if (gymCodeInput.trim().toLowerCase() !== (selectedGym.gym_code ?? '').toLowerCase()) {
+      setError("That code doesn't match. Ask the front desk for today's code.")
+      return
+    }
+    setError(null)
+    locationVerifiedRef.current = true
+    await commitCheckIn()
+  }
+
   async function handleCheckIn() {
     if (loading || !selectedGym) return
+    setLoading(true)
+    setError(null)
+
+    if (!locationVerifiedRef.current) {
+      const verified = await doLocationCheck()
+      if (!verified) {
+        setLoading(false)
+        return
+      }
+      locationVerifiedRef.current = true
+    }
+
+    await commitCheckIn()
+  }
+
+  async function commitCheckIn() {
     setLoading(true)
     setError(null)
 
@@ -173,7 +274,7 @@ export default function CheckInScreen() {
       custom_vibe: customVibe.trim() || null,
       open_to_chat: openToChat,
       women_only_mode: womenVerified ? womenOnlyMode : false,
-      gym_id: selectedGym.id,
+      gym_id: selectedGym!.id,
     }
 
     const { data: existing } = await supabase
@@ -195,6 +296,24 @@ export default function CheckInScreen() {
     }
 
     router.replace('/live')
+  }
+
+  async function handleLocationPromptAllow() {
+    setShowLocationPrompt(false)
+    const { status } = await Location.requestForegroundPermissionsAsync()
+    if (status === 'granted') {
+      setLoading(true)
+      const verified = await doLocationCheck()
+      if (verified) {
+        locationVerifiedRef.current = true
+        await commitCheckIn()
+      } else {
+        setLoading(false)
+      }
+    } else {
+      setShowGymCodeFallback(true)
+      setError("Location access was denied. Enter the gym code to check in.")
+    }
   }
 
   if (resolving || gymsLoading) {
@@ -241,6 +360,40 @@ export default function CheckInScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <Modal
+        visible={showLocationPrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLocationPrompt(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <MapPin size={28} color={colors.accent} />
+            <Text style={styles.modalTitle}>Just one thing before you check in</Text>
+            <Text style={styles.modalBody}>
+              Spottr needs your location to confirm you're actually at the gym. Your coordinates are never stored — this check happens only on your device.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalPrimaryBtn}
+              onPress={handleLocationPromptAllow}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalPrimaryBtnText}>Allow location</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setShowLocationPrompt(false)
+                setShowGymCodeFallback(true)
+                setError("Enter the gym code to check in without location.")
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalSkipText}>Use gym code instead</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.gymSelectedCard}>
           <View style={styles.gymCardBody}>
@@ -304,19 +457,48 @@ export default function CheckInScreen() {
           </View>
         )}
 
+        {showGymCodeFallback && (
+          <View style={styles.gymCodeSection}>
+            <Text style={styles.gymCodeLabel}>Gym code</Text>
+            <TextInput
+              style={styles.gymCodeInput}
+              placeholder="Ask the front desk"
+              placeholderTextColor={colors.textSecondary}
+              value={gymCodeInput}
+              onChangeText={setGymCodeInput}
+              autoCapitalize="none"
+              returnKeyType="done"
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={[styles.button, (!gymCodeInput.trim() || loading) && styles.buttonDisabled]}
+              disabled={!gymCodeInput.trim() || loading}
+              onPress={handleGymCode}
+              activeOpacity={0.8}
+            >
+              {loading
+                ? <ActivityIndicator color={colors.textPrimary} />
+                : <Text style={styles.buttonText}>Check in with code</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        )}
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          disabled={loading}
-          onPress={handleCheckIn}
-          activeOpacity={0.8}
-        >
-          {loading
-            ? <ActivityIndicator color={colors.textPrimary} />
-            : <Text style={styles.buttonText}>I'm in</Text>
-          }
-        </TouchableOpacity>
+        {!showGymCodeFallback && (
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            disabled={loading}
+            onPress={handleCheckIn}
+            activeOpacity={0.8}
+          >
+            {loading
+              ? <ActivityIndicator color={colors.textPrimary} />
+              : <Text style={styles.buttonText}>I'm in</Text>
+            }
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   )
@@ -432,6 +614,69 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
+  },
+
+  gymCodeSection: {
+    marginTop: 24,
+    gap: 10,
+  },
+  gymCodeLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  gymCodeInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  modalBody: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  modalPrimaryBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+  },
+  modalPrimaryBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  modalSkipText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
   },
 
   button: {
