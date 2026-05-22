@@ -54,6 +54,7 @@ export default function EditProfileScreen() {
   const [emailSaving, setEmailSaving]     = useState(false)
   const [emailSaveMsg, setEmailSaveMsg]   = useState<string | null>(null)
   const [verificationSent, setVerificationSent] = useState(false)
+  const [showChangeEmail, setShowChangeEmail] = useState(false)
 
   useEffect(() => {
     async function boot() {
@@ -210,16 +211,21 @@ export default function EditProfileScreen() {
         {showPersonaLock && (
           <View style={styles.lockPanel}>
             <Text style={styles.lockPanelText}>
-              Verify your email to unlock the Persona style.
+              Unlock Persona avatars by verifying your email.
             </Text>
             {verificationSent ? (
-              <Text style={styles.lockPanelSent}>Verification email sent. Check your inbox.</Text>
+              <Text style={styles.lockPanelSent}>Verification sent. Check your inbox when you're ready.</Text>
             ) : (
               <TouchableOpacity onPress={handleResendVerification} activeOpacity={0.7}>
-                <Text style={styles.lockPanelLink}>Send verification email</Text>
+                <Text style={styles.lockPanelLink}>Verify email</Text>
               </TouchableOpacity>
             )}
           </View>
+        )}
+        {emailConfirmed && avatarStyle === 'personas' && (
+          <Text style={styles.personaUnlockedMsg}>
+            Persona unlocked. Pick one that feels like you.
+          </Text>
         )}
 
         {/* Avatar grid */}
@@ -291,32 +297,63 @@ export default function EditProfileScreen() {
             </View>
           )}
         </View>
-        <TextInput
-          style={[styles.input, { marginTop: 10 }]}
-          value={newEmail}
-          onChangeText={(v) => { setNewEmail(v); setEmailSaveMsg(null) }}
-          placeholder="New email address"
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          returnKeyType="done"
-        />
-        {emailSaveMsg ? (
-          <Text style={[styles.charCount, { color: emailSaveMsg.startsWith('Check') ? colors.accent : '#C0392B' }]}>
-            {emailSaveMsg}
-          </Text>
-        ) : null}
+
+        {!emailConfirmed && (
+          verificationSent ? (
+            <Text style={styles.verificationSentMsg}>
+              Verification sent. Check your inbox when you're ready.
+            </Text>
+          ) : (
+            <TouchableOpacity
+              style={styles.verifyEmailBtn}
+              onPress={handleResendVerification}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.saveBtnText}>Verify email</Text>
+            </TouchableOpacity>
+          )
+        )}
+
         <TouchableOpacity
-          style={[styles.updateEmailBtn, (!newEmail.trim() || emailSaving) && styles.saveBtnDisabled]}
-          disabled={!newEmail.trim() || emailSaving}
-          onPress={handleEmailUpdate}
-          activeOpacity={0.85}
+          style={styles.changeEmailLink}
+          onPress={() => { setShowChangeEmail(v => !v); setEmailSaveMsg(null) }}
+          activeOpacity={0.7}
         >
-          {emailSaving
-            ? <ActivityIndicator color={colors.textPrimary} />
-            : <Text style={styles.saveBtnText}>Update email</Text>
-          }
+          <Text style={styles.changeEmailLinkText}>
+            {showChangeEmail ? 'Cancel' : 'Change email'}
+          </Text>
         </TouchableOpacity>
+
+        {showChangeEmail && (
+          <>
+            <TextInput
+              style={[styles.input, { marginTop: 10 }]}
+              value={newEmail}
+              onChangeText={(v) => { setNewEmail(v); setEmailSaveMsg(null) }}
+              placeholder="New email address"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              returnKeyType="done"
+            />
+            {emailSaveMsg ? (
+              <Text style={[styles.charCount, { color: emailSaveMsg.startsWith('Check') ? colors.accent : '#C0392B' }]}>
+                {emailSaveMsg}
+              </Text>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.updateEmailBtn, (!newEmail.trim() || emailSaving) && styles.saveBtnDisabled]}
+              disabled={!newEmail.trim() || emailSaving}
+              onPress={handleEmailUpdate}
+              activeOpacity={0.85}
+            >
+              {emailSaving
+                ? <ActivityIndicator color={colors.textPrimary} />
+                : <Text style={styles.saveBtnText}>Update email</Text>
+              }
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={styles.divider} />
 
@@ -446,6 +483,35 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: colors.accent,
+  },
+  verifyEmailBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  verificationSentMsg: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 12,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  changeEmailLink: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  changeEmailLinkText: {
+    fontSize: 13,
+    color: colors.accent,
+    fontWeight: '500',
+  },
+  personaUnlockedMsg: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
 
   grid: {

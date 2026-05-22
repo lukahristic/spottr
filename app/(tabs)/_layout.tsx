@@ -21,7 +21,7 @@ const INACTIVE = '#9A9186'
 const TABS: { name: string; label: string; Icon: React.ComponentType<IconProps> }[] = [
   { name: 'index',    label: 'Check In', Icon: MapPinCheck    },
   { name: 'live',     label: 'Live',     Icon: Zap            },
-  { name: 'messages', label: 'Messages', Icon: MessageCircle  },
+  { name: 'messages', label: 'Inbox',    Icon: MessageCircle  },
   { name: 'profile',  label: 'Profile',  Icon: User           },
 ]
 
@@ -227,6 +227,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0,
+    textAlign: 'center',
+    alignSelf: 'stretch',
   },
 
   indicator: {
