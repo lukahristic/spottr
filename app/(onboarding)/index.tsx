@@ -17,7 +17,7 @@ export default function OnboardingWelcomeScreen() {
             Real people.{'\n'}Real gyms.
           </Text>
           <Text style={styles.body}>
-            No cold approaches. No pressure.{'\n'}Just people at the same gym.
+            Take your time.{'\n'}Just people at the same gym.
           </Text>
         </View>
 
@@ -27,7 +27,7 @@ export default function OnboardingWelcomeScreen() {
             onPress={() => router.push('/(onboarding)/how-it-works')}
             activeOpacity={0.85}
           >
-            <Text style={styles.buttonText}>Get Started</Text>
+            <Text style={styles.buttonText}>I'm in</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

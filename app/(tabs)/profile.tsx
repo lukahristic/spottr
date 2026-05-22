@@ -103,8 +103,6 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
 
-        <Text style={styles.headerName}>{name}</Text>
-
         <TouchableOpacity
           style={styles.avatarWrap}
           onPress={() => router.push('/edit-profile')}
@@ -171,36 +169,43 @@ export default function ProfileScreen() {
             >
               {requestingVerification
                 ? <ActivityIndicator color={colors.textPrimary} />
-                : <Text style={styles.womenRequestBtnText}>Request Women's space access</Text>
+                : (
+                  <>
+                    <Text style={styles.womenRequestBtnText}>Women's space</Text>
+                    <Text style={styles.womenRequestBtnHint}>A space only visible to verified women</Text>
+                  </>
+                )
               }
             </TouchableOpacity>
           )}
 
-          {activeCheckinId !== null && (
+          <View style={styles.accountSection}>
+            {activeCheckinId !== null && (
+              <TouchableOpacity
+                style={[styles.checkOutButton, checkingOut && styles.buttonDisabled]}
+                onPress={handleCheckOut}
+                disabled={checkingOut}
+                activeOpacity={0.7}
+              >
+                {checkingOut
+                  ? <ActivityIndicator color={colors.textPrimary} />
+                  : <Text style={styles.checkOutText}>Check Out</Text>
+                }
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={[styles.checkOutButton, checkingOut && styles.buttonDisabled]}
-              onPress={handleCheckOut}
-              disabled={checkingOut}
+              style={[styles.signOutButton, signingOut && styles.buttonDisabled]}
+              onPress={handleSignOut}
+              disabled={signingOut}
               activeOpacity={0.7}
             >
-              {checkingOut
-                ? <ActivityIndicator color={colors.textPrimary} />
-                : <Text style={styles.checkOutText}>Check Out</Text>
+              {signingOut
+                ? <ActivityIndicator color="#C0392B" />
+                : <Text style={styles.signOutText}>Sign Out</Text>
               }
             </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={[styles.signOutButton, signingOut && styles.buttonDisabled]}
-            onPress={handleSignOut}
-            disabled={signingOut}
-            activeOpacity={0.7}
-          >
-            {signingOut
-              ? <ActivityIndicator color="#C0392B" />
-              : <Text style={styles.signOutText}>Sign Out</Text>
-            }
-          </TouchableOpacity>
+          </View>
         </View>
 
       </ScrollView>
@@ -218,14 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  headerName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 40,
-  },
-
-  avatarWrap: { marginBottom: 16 },
+  avatarWrap: { marginBottom: 16, marginTop: 8 },
 
   displayName: {
     fontSize: 20,
@@ -297,6 +295,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   womenRequestBtnText: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  womenRequestBtnHint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   womenVerifiedBadge: {
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -327,6 +326,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signOutText: { fontSize: 15, fontWeight: '600', color: '#C0392B' },
+
+  accountSection: {
+    gap: 10,
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
 
   buttonDisabled: { opacity: 0.5 },
 })

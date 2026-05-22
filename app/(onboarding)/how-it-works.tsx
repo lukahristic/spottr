@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { MapPin, Target, MessageCircle } from 'lucide-react-native'
 import { colors } from '../../.claude/tokens/colors'
 
 async function completeOnboarding() {
@@ -25,7 +26,9 @@ export default function HowItWorksScreen() {
 
         {/* Card 1 */}
         <View style={styles.card}>
-          <Text style={styles.cardIcon}>📍</Text>
+          <View style={styles.cardIconWrap}>
+            <MapPin size={20} color={colors.accent} strokeWidth={1.75} />
+          </View>
           <Text style={styles.cardTitle}>Check in to your gym</Text>
           <Text style={styles.cardBody}>
             Tap in when you arrive. Only members in the same gym will see you — no one outside.
@@ -37,7 +40,9 @@ export default function HowItWorksScreen() {
 
         {/* Card 2 */}
         <View style={styles.card}>
-          <Text style={styles.cardIcon}>🎯</Text>
+          <View style={styles.cardIconWrap}>
+            <Target size={20} color={colors.accent} strokeWidth={1.75} />
+          </View>
           <Text style={styles.cardTitle}>Set your vibe</Text>
           <Text style={styles.cardBody}>Pick a chip that matches your session. No roles, just context.</Text>
           <View style={styles.chipGrid}>
@@ -49,13 +54,15 @@ export default function HowItWorksScreen() {
           </View>
           <View style={styles.toggleRow}>
             <View style={styles.togglePill} />
-            <Text style={styles.toggleLabel}>Open to chat — flip this on when you're open to connecting.</Text>
+            <Text style={styles.toggleLabel}>Flip it on when you'd welcome a hello.</Text>
           </View>
         </View>
 
         {/* Card 3 */}
         <View style={styles.card}>
-          <Text style={styles.cardIcon}>💬</Text>
+          <View style={styles.cardIconWrap}>
+            <MessageCircle size={20} color={colors.accent} strokeWidth={1.75} />
+          </View>
           <Text style={styles.cardTitle}>Connect naturally</Text>
           <Text style={styles.cardBody}>
             Send a short intro before walking over. One message. No pressure.
@@ -124,7 +131,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 8,
   },
-  cardIcon:  { fontSize: 24 },
+  cardIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cardTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   cardBody:  { fontSize: 14, color: colors.textSecondary, lineHeight: 21 },
   cardTrust: { fontSize: 12, color: colors.textSecondary, lineHeight: 18, opacity: 0.7 },

@@ -80,7 +80,7 @@ function FloatingTabBar({ state, navigation, unreadCount }: BottomTabBarProps & 
                 )}
               </Animated.View>
 
-              <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]}>
+              <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]} numberOfLines={1}>
                 {tab.label}
               </Text>
 
@@ -163,7 +163,12 @@ export default function TabLayout() {
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} unreadCount={totalUnread} />}
       screenOptions={{ headerShown: false }}
-    />
+    >
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="live" />
+      <Tabs.Screen name="messages" />
+      <Tabs.Screen name="profile" />
+    </Tabs>
   )
 }
 
@@ -221,8 +226,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
+    letterSpacing: 0,
   },
 
   indicator: {

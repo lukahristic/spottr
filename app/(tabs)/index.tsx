@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Switch,
   Modal,
+  Linking,
 } from 'react-native'
 import { ChevronRight, MapPin } from 'lucide-react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -78,6 +79,7 @@ export default function CheckInScreen() {
   const [showLocationPrompt, setShowLocationPrompt] = useState(false)
   const [gymCodeInput, setGymCodeInput]             = useState('')
   const [showGymCodeFallback, setShowGymCodeFallback] = useState(false)
+  const [locationDenied, setLocationDenied]         = useState(false)
   const locationVerifiedRef = useRef(false)
 
   const placeholder = useMemo(
@@ -120,6 +122,7 @@ export default function CheckInScreen() {
         setWomenOnlyMode(false)
         setGymCodeInput('')
         setShowGymCodeFallback(false)
+        setLocationDenied(false)
         locationVerifiedRef.current = false
 
         if (gymSlug) {
@@ -189,7 +192,8 @@ export default function CheckInScreen() {
 
     if (status === 'denied') {
       setShowGymCodeFallback(true)
-      setError("Location access was denied. Enter the gym code to check in.")
+      setLocationDenied(true)
+      setError("Location is off. Enter the gym code to check in.")
       return false
     }
 
@@ -318,7 +322,8 @@ export default function CheckInScreen() {
       }
     } else {
       setShowGymCodeFallback(true)
-      setError("Location access was denied. Enter the gym code to check in.")
+      setLocationDenied(true)
+      setError("Location is off. Enter the gym code to check in.")
     }
   }
 
@@ -395,6 +400,12 @@ export default function CheckInScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.modalSkipText}>Use gym code instead</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowLocationPrompt(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalDismissText}>Not now</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -491,6 +502,11 @@ export default function CheckInScreen() {
         )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {locationDenied && (
+          <TouchableOpacity onPress={() => Linking.openSettings()} activeOpacity={0.7} style={styles.settingsLinkWrap}>
+            <Text style={styles.settingsLink}>Enable location in Settings</Text>
+          </TouchableOpacity>
+        )}
 
         {!showGymCodeFallback && (
           <TouchableOpacity
@@ -682,6 +698,21 @@ const styles = StyleSheet.create({
   modalSkipText: {
     fontSize: 14,
     color: colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  modalDismissText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    opacity: 0.6,
+  },
+  settingsLinkWrap: {
+    alignSelf: 'center',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  settingsLink: {
+    fontSize: 13,
+    color: colors.accent,
     textDecorationLine: 'underline',
   },
 
