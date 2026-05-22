@@ -372,16 +372,16 @@ export default function CheckInScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <MapPin size={28} color={colors.accent} />
-            <Text style={styles.modalTitle}>Just one thing before you check in</Text>
+            <Text style={styles.modalTitle}>Verify your gym check-in</Text>
             <Text style={styles.modalBody}>
-              Spottr needs your location to confirm you're actually at the gym. Your coordinates are never stored — this check happens only on your device.
+              Spottr uses your location only to confirm you're at the gym. Your location is never stored.
             </Text>
             <TouchableOpacity
               style={styles.modalPrimaryBtn}
               onPress={handleLocationPromptAllow}
               activeOpacity={0.85}
             >
-              <Text style={styles.modalPrimaryBtnText}>Allow location</Text>
+              <Text style={styles.modalPrimaryBtnText}>Continue</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {

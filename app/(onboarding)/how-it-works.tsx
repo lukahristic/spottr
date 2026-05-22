@@ -30,6 +30,9 @@ export default function HowItWorksScreen() {
           <Text style={styles.cardBody}>
             Tap in when you arrive. Only members in the same gym will see you — no one outside.
           </Text>
+          <Text style={styles.cardTrust}>
+            Spottr uses your location only to verify your gym check-in. Your location is never stored.
+          </Text>
         </View>
 
         {/* Card 2 */}
@@ -124,6 +127,7 @@ const styles = StyleSheet.create({
   cardIcon:  { fontSize: 24 },
   cardTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
   cardBody:  { fontSize: 14, color: colors.textSecondary, lineHeight: 21 },
+  cardTrust: { fontSize: 12, color: colors.textSecondary, lineHeight: 18, opacity: 0.7 },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {
     backgroundColor: colors.background,
