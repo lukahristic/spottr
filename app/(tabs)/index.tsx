@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { LocationObject } from 'expo-location'
 import {
   View,
   Text,
@@ -205,13 +206,15 @@ export default function CheckInScreen() {
       const result = await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
         timeout,
-      ]) as Location.LocationObject
+      ]) as LocationObject
       coords = result.coords
     } catch {
       setShowGymCodeFallback(true)
       setError("Couldn't get your location. Enter the gym code instead.")
       return false
     }
+
+    if (!coords) return false
 
     const dist = haversineMeters(
       coords.latitude,
