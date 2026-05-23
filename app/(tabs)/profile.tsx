@@ -74,7 +74,7 @@ export default function ProfileScreen() {
     setCheckingOut(true)
     await supabase
       .from('checkins')
-      .update({ is_active: false })
+      .update({ is_active: false, checked_out_at: new Date().toISOString() })
       .eq('id', activeCheckinId)
     setCheckingOut(false)
     setActiveCheckinId(null)

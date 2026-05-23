@@ -36,7 +36,7 @@ export async function approveVerification(formData: FormData) {
   const userId = formData.get('user_id') as string
   await supabase
     .from('profiles')
-    .update({ women_verified: true })
+    .update({ women_verified: true, women_verified_at: new Date().toISOString() })
     .eq('id', userId)
 
   revalidatePath('/dashboard')

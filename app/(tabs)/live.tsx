@@ -63,7 +63,7 @@ export default function LiveListScreen() {
     const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
     await supabase
       .from('checkins')
-      .update({ is_active: false })
+      .update({ is_active: false, checked_out_at: new Date().toISOString() })
       .eq('is_active', true)
       .lt('checked_in_at', threeHoursAgo)
 
