@@ -26,6 +26,7 @@ export default function ProfileScreen() {
   const [womenVerified, setWomenVerified]         = useState(false)
   const [verificationRequested, setVerificationRequested] = useState(false)
   const [requestingVerification, setRequestingVerification] = useState(false)
+  const [cancellingVerification, setCancellingVerification] = useState(false)
   const [checkingOut, setCheckingOut]     = useState(false)
   const [signingOut, setSigningOut]       = useState(false)
 
@@ -90,6 +91,17 @@ export default function ProfileScreen() {
       .eq('id', userId)
     setRequestingVerification(false)
     setVerificationRequested(true)
+  }
+
+  async function handleCancelVerification() {
+    if (!userId || cancellingVerification) return
+    setCancellingVerification(true)
+    await supabase
+      .from('profiles')
+      .update({ verification_requested_at: null })
+      .eq('id', userId)
+    setCancellingVerification(false)
+    setVerificationRequested(false)
   }
 
   async function handleSignOut() {
@@ -159,6 +171,17 @@ export default function ProfileScreen() {
           ) : verificationRequested ? (
             <View style={styles.womenPendingBadge}>
               <Text style={styles.womenPendingText}>Women's space · Verification pending</Text>
+              <TouchableOpacity
+                onPress={handleCancelVerification}
+                disabled={cancellingVerification}
+                activeOpacity={0.6}
+                style={styles.cancelVerificationBtn}
+              >
+                {cancellingVerification
+                  ? <ActivityIndicator size="small" color={colors.textSecondary} />
+                  : <Text style={styles.cancelVerificationText}>Cancel request</Text>
+                }
+              </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity
@@ -310,6 +333,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   womenPendingText: { fontSize: 15, color: colors.textSecondary },
+  cancelVerificationBtn: { marginTop: 6 },
+  cancelVerificationText: { fontSize: 12, color: '#C0392B', textAlign: 'center' },
 
   checkOutButton: {
     backgroundColor: colors.surface,
