@@ -57,14 +57,7 @@ export default function Trends({ data }: { data: TrendRow[] }) {
             <XAxis dataKey="day" {...axisProps} />
             <YAxis allowDecimals={false} {...axisProps} />
             <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#888' }} />
-            <Line
-              type="monotone"
-              dataKey="checkins"
-              stroke="#DFAF3A"
-              strokeWidth={2}
-              dot={false}
-              name="Check-ins"
-            />
+            <Line type="monotone" dataKey="checkins" stroke="#DFAF3A" strokeWidth={2} dot={false} name="Check-ins" />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -77,22 +70,8 @@ export default function Trends({ data }: { data: TrendRow[] }) {
             <YAxis allowDecimals={false} {...axisProps} />
             <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#888' }} />
             <Legend wrapperStyle={{ fontSize: 12, color: '#888' }} />
-            <Line
-              type="monotone"
-              dataKey="intros"
-              stroke="#C9D8E8"
-              strokeWidth={2}
-              dot={false}
-              name="Intros"
-            />
-            <Line
-              type="monotone"
-              dataKey="unlocked"
-              stroke="#B8D8C0"
-              strokeWidth={2}
-              dot={false}
-              name="Unlocked"
-            />
+            <Line type="monotone" dataKey="intros" stroke="#C9D8E8" strokeWidth={2} dot={false} name="Intros" />
+            <Line type="monotone" dataKey="unlocked" stroke="#B8D8C0" strokeWidth={2} dot={false} name="Unlocked" />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -104,14 +83,7 @@ export default function Trends({ data }: { data: TrendRow[] }) {
             <XAxis dataKey="day" {...axisProps} />
             <YAxis allowDecimals={false} {...axisProps} />
             <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#888' }} />
-            <Line
-              type="monotone"
-              dataKey="active_users"
-              stroke="#F3D7B6"
-              strokeWidth={2}
-              dot={false}
-              name="Active users"
-            />
+            <Line type="monotone" dataKey="active_users" stroke="#F3D7B6" strokeWidth={2} dot={false} name="Active users" />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>

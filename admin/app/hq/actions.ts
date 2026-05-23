@@ -25,7 +25,7 @@ export async function updateGymSettings(formData: FormData) {
     .update({ latitude, longitude, checkin_radius_m: checkinRadius, gym_code: gymCode })
     .eq('id', gymId)
 
-  revalidatePath('/dashboard')
+  revalidatePath('/hq/settings')
 }
 
 export async function approveVerification(formData: FormData) {
@@ -39,7 +39,40 @@ export async function approveVerification(formData: FormData) {
     .update({ women_verified: true, women_verified_at: new Date().toISOString() })
     .eq('id', userId)
 
-  revalidatePath('/dashboard')
+  revalidatePath('/hq/verifications')
+}
+
+export async function addPartner(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/')
+
+  const userId = (formData.get('user_id') as string).trim()
+  const gymId  = (formData.get('gym_id')  as string).trim()
+  const role   = (formData.get('role')    as string) || 'owner'
+
+  if (!userId || !gymId) return
+
+  await supabase.rpc('add_gym_admin', {
+    p_user_id: userId,
+    p_gym_id:  gymId,
+    p_role:    role,
+  })
+
+  revalidatePath('/hq/partners')
+}
+
+export async function removePartner(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/')
+
+  const adminId = formData.get('admin_id') as string
+  if (!adminId) return
+
+  await supabase.rpc('remove_gym_admin', { p_id: adminId })
+
+  revalidatePath('/hq/partners')
 }
 
 export async function signOut() {

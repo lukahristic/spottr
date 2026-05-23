@@ -40,12 +40,10 @@ export default async function AnalyticsPage() {
   const supabase = await createClient()
 
   const [
-    { data: isPlatformAdmin },
     { data: overviewRows, error: overviewErr },
     { data: gymRows, error: gymErr },
     { data: trendRows, error: trendErr },
   ] = await Promise.all([
-    supabase.rpc('is_platform_admin'),
     supabase.rpc('get_admin_overview'),
     supabase.rpc('get_admin_gym_activity'),
     supabase.rpc('get_admin_trends', { p_days: 30 }),
@@ -70,12 +68,9 @@ export default async function AnalyticsPage() {
     <div>
       <div className="mb-10">
         <h1 className="text-2xl font-bold">Analytics</h1>
-        <p className="text-[#888] text-sm mt-0.5">
-          {isPlatformAdmin ? 'Platform-wide view' : 'Your gym'}
-        </p>
+        <p className="text-[#888] text-sm mt-0.5">Platform-wide view</p>
       </div>
 
-      {/* Product Overview */}
       <section className="mb-8">
         <h2 className="text-white font-semibold text-base mb-4">Product overview</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -92,7 +87,6 @@ export default async function AnalyticsPage() {
         </div>
       </section>
 
-      {/* Gym Activity */}
       <section className="mb-8">
         <h2 className="text-white font-semibold text-base mb-4">Gym activity</h2>
         <div className="bg-[#1C1C1C] rounded-2xl overflow-hidden">
@@ -129,7 +123,6 @@ export default async function AnalyticsPage() {
         </div>
       </section>
 
-      {/* Engagement Trends */}
       <section>
         <h2 className="text-white font-semibold text-base mb-4">Engagement trends · last 30 days</h2>
         <Trends data={trends} />

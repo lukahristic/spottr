@@ -4,17 +4,18 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const tabs = [
-  { href: '/dashboard',            label: 'Settings'  },
-  { href: '/dashboard/analytics',  label: 'Analytics' },
+  { href: '/partner',     label: 'Overview' },
+  { href: '/partner/gym', label: 'Gym'      },
+  { href: '/partner/qr',  label: 'QR code'  },
 ]
 
-export default function Nav() {
+export default function PartnerNav() {
   const pathname = usePathname()
 
   return (
     <nav className="flex items-center gap-1 border-b border-[#222] mb-8">
       {tabs.map((t) => {
-        const active = pathname === t.href
+        const active = pathname === t.href || (t.href !== '/partner' && pathname?.startsWith(t.href))
         return (
           <Link
             key={t.href}
