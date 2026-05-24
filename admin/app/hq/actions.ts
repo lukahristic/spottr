@@ -43,28 +43,42 @@ export async function approveVerification(formData: FormData) {
   revalidatePath('/hq/verifications')
 }
 
-export async function createGym(formData: FormData) {
+type CreateGymState = { success?: boolean; error?: string } | null
+
+export async function createGym(
+  _prev: CreateGymState,
+  formData: FormData,
+): Promise<CreateGymState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
 
-  const name     = (formData.get('name')      as string).trim()
-  const location = (formData.get('location')  as string).trim()
-  const address  = (formData.get('address')   as string).trim()
-  const gymCodeRaw  = (formData.get('gym_code') as string).trim().toUpperCase()
+  const name     = ((formData.get('name')      as string) ?? '').trim()
+  const location = ((formData.get('location')  as string) ?? '').trim()
+  const address  = ((formData.get('address')   as string) ?? '').trim()
+  const gymCodeRaw  = ((formData.get('gym_code') as string) ?? '').trim().toUpperCase()
   const gymCode     = gymCodeRaw || Math.random().toString(36).slice(2, 7).toUpperCase()
-  const latRaw      = (formData.get('latitude')  as string).trim()
-  const lngRaw      = (formData.get('longitude') as string).trim()
-  const radiusRaw   = (formData.get('checkin_radius_m') as string).trim()
+  const latRaw      = ((formData.get('latitude')  as string) ?? '').trim()
+  const lngRaw      = ((formData.get('longitude') as string) ?? '').trim()
+  const radiusRaw   = ((formData.get('checkin_radius_m') as string) ?? '').trim()
 
-  if (!name || !location || !address) return
+  if (!name || !location || !address) {
+    return { error: 'Name, location, and address are required.' }
+  }
+
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    + '-' + Math.random().toString(36).slice(2, 6)
 
   const latitude       = latRaw   ? parseFloat(latRaw)   : null
   const longitude      = lngRaw   ? parseFloat(lngRaw)   : null
   const checkinRadius  = parseInt(radiusRaw) || 100
 
-  await supabase.from('gyms').insert({
+  const { error } = await supabase.from('gyms').insert({
     name,
+    slug,
     location,
     address,
     gym_code:        gymCode,
@@ -74,7 +88,13 @@ export async function createGym(formData: FormData) {
     is_active:       true,
   })
 
+  if (error) {
+    console.error('createGym failed:', error.message)
+    return { error: error.message }
+  }
+
   revalidatePath('/hq/gyms')
+  return { success: true }
 }
 
 export async function invitePartner(formData: FormData) {

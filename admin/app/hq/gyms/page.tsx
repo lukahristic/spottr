@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { createGym } from '../actions'
+import { CreateGymForm } from './CreateGymForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,97 +46,7 @@ export default async function GymsPage() {
       {/* Create form */}
       <section className="bg-[#1C1C1C] rounded-2xl p-6 mb-5">
         <h2 className="font-semibold text-base mb-4">Create gym</h2>
-        <form action={createGym} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#888] font-medium">Gym name *</label>
-              <input
-                name="name"
-                required
-                placeholder="e.g. Iron Works Gym"
-                className="bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A] placeholder:text-[#444]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#888] font-medium">Location label *</label>
-              <input
-                name="location"
-                required
-                placeholder="e.g. Downtown LA"
-                className="bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A] placeholder:text-[#444]"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[#888] font-medium">Address *</label>
-            <input
-              name="address"
-              required
-              placeholder="e.g. 123 Main St, Los Angeles, CA 90001"
-              className="bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A] placeholder:text-[#444]"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[#888] font-medium">Gym code *</label>
-            <input
-              name="gym_code"
-              required
-              placeholder="e.g. IRON24"
-              className="bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A] placeholder:text-[#444] uppercase"
-            />
-            <p className="text-xs text-[#555]">Short code members can enter manually to add the gym without scanning a QR.</p>
-          </div>
-
-          {/* Advanced section */}
-          <details className="group">
-            <summary className="text-xs text-[#888] cursor-pointer select-none list-none flex items-center gap-1.5 py-1">
-              <span className="border border-[#333] rounded px-2 py-0.5 text-[#555] text-xs group-open:text-[#888]">Advanced</span>
-              <span className="text-[#555]">Recommended for better location accuracy</span>
-            </summary>
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[#888] font-medium">Latitude</label>
-                <input
-                  name="latitude"
-                  type="number"
-                  step="any"
-                  placeholder="34.0522"
-                  className="bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A] placeholder:text-[#444]"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[#888] font-medium">Longitude</label>
-                <input
-                  name="longitude"
-                  type="number"
-                  step="any"
-                  placeholder="-118.2437"
-                  className="bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A] placeholder:text-[#444]"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[#888] font-medium">Check-in radius (m)</label>
-                <input
-                  name="checkin_radius_m"
-                  type="number"
-                  defaultValue={100}
-                  min={10}
-                  max={2000}
-                  className="bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A]"
-                />
-              </div>
-            </div>
-          </details>
-
-          <button
-            type="submit"
-            className="bg-[#DFAF3A] text-[#111111] font-bold rounded-xl py-2.5 px-5 text-sm"
-          >
-            Create gym
-          </button>
-        </form>
+        <CreateGymForm />
       </section>
 
       {/* Gym list */}
