@@ -122,6 +122,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="gym/[slug]" />
+        <Stack.Screen name="scan" />
         <Stack.Screen name="edit-profile" />
       </Stack>
     </ErrorBoundary>

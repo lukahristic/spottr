@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -42,19 +43,69 @@ export async function approveVerification(formData: FormData) {
   revalidatePath('/hq/verifications')
 }
 
-export async function addPartner(formData: FormData) {
+export async function createGym(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
 
-  const userId = (formData.get('user_id') as string).trim()
-  const gymId  = (formData.get('gym_id')  as string).trim()
-  const role   = (formData.get('role')    as string) || 'owner'
+  const name     = (formData.get('name')      as string).trim()
+  const location = (formData.get('location')  as string).trim()
+  const address  = (formData.get('address')   as string).trim()
+  const gymCode  = (formData.get('gym_code')  as string).trim().toUpperCase()
+  const latRaw   = (formData.get('latitude')  as string).trim()
+  const lngRaw   = (formData.get('longitude') as string).trim()
+  const radiusRaw = (formData.get('checkin_radius_m') as string).trim()
 
-  if (!userId || !gymId) return
+  if (!name || !location || !address || !gymCode) return
+
+  const latitude       = latRaw   ? parseFloat(latRaw)   : null
+  const longitude      = lngRaw   ? parseFloat(lngRaw)   : null
+  const checkinRadius  = parseInt(radiusRaw) || 100
+
+  await supabase.from('gyms').insert({
+    name,
+    location,
+    address,
+    gym_code:        gymCode,
+    latitude,
+    longitude,
+    checkin_radius_m: checkinRadius,
+    is_active:       true,
+  })
+
+  revalidatePath('/hq/gyms')
+}
+
+export async function invitePartner(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/')
+
+  const email  = (formData.get('email')  as string).trim().toLowerCase()
+  const gymId  = (formData.get('gym_id') as string).trim()
+  const role   = (formData.get('role')   as string) || 'owner'
+
+  if (!email || !gymId) return
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return
+
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+
+  const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL ?? ''
+  const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${adminUrl}/auth/redirect`,
+  })
+
+  if (inviteErr || !inviteData?.user) {
+    console.error('invite failed', inviteErr)
+    return
+  }
 
   await supabase.rpc('add_gym_admin', {
-    p_user_id: userId,
+    p_user_id: inviteData.user.id,
     p_gym_id:  gymId,
     p_role:    role,
   })

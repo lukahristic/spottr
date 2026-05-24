@@ -15,7 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Spottr uses your location to confirm you're at the gym. It's never stored."
+        "NSLocationWhenInUseUsageDescription": "Spottr uses your location to confirm you're at the gym. It's never stored.",
+        "NSCameraUsageDescription": "Spottr uses the camera to scan your gym's QR code."
       }
     },
     "android": {
@@ -27,7 +28,7 @@
         "backgroundColor": "#111111"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["ACCESS_FINE_LOCATION"]
+      "permissions": ["ACCESS_FINE_LOCATION", "android.permission.CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +42,8 @@
           "color": "#111111"
         }
       ],
-      "expo-location"
+      "expo-location",
+      "expo-camera"
     ],
     "extra": {
       "router": {},

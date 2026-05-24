@@ -27,7 +27,17 @@ export default async function PartnerQrPage() {
 
       <section className="bg-[#1C1C1C] rounded-2xl p-8">
         {gym?.slug ? (
-          <QRCode value={`spottr://gym/${gym.slug}`} filename={`spottr-${gym.slug}.png`} />
+          <div className="flex flex-col items-center gap-6">
+            <QRCode value={`spottr://gym/${gym.slug}`} filename={`spottr-${gym.slug}.png`} />
+            <a
+              href="/partner/poster"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#111] hover:bg-[#222] text-white text-sm font-semibold rounded-xl px-5 py-2.5 border border-[#333] transition-colors"
+            >
+              Print poster
+            </a>
+          </div>
         ) : (
           <div className="text-center">
             <p className="text-white font-medium mb-2">No QR code yet</p>

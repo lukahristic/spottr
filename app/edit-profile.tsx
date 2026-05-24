@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Dimensions,
+  Switch,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -56,6 +57,12 @@ export default function EditProfileScreen() {
   const [verificationSent, setVerificationSent] = useState(false)
   const [showChangeEmail, setShowChangeEmail] = useState(false)
 
+  const [showGymsVisited, setShowGymsVisited]               = useState(true)
+  const [showConnectionsStarted, setShowConnectionsStarted] = useState(true)
+  const [showCurrentGym, setShowCurrentGym]                 = useState(false)
+  const [showExperienceLevel, setShowExperienceLevel]       = useState(true)
+  const [showFitnessGoal, setShowFitnessGoal]               = useState(true)
+
   useEffect(() => {
     async function boot() {
       const [{ data: { user } }] = await Promise.all([supabase.auth.getUser()])
@@ -68,7 +75,7 @@ export default function EditProfileScreen() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('bio, avatar_seed, avatar_style')
+        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -76,6 +83,13 @@ export default function EditProfileScreen() {
       setAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
       setSelectedSeed(profile?.avatar_seed ?? randomSeed())
       setGridSeeds(generateSeeds())
+
+      setShowGymsVisited(profile?.show_gyms_visited ?? true)
+      setShowConnectionsStarted(profile?.show_connections_started ?? true)
+      setShowCurrentGym(profile?.show_current_gym ?? false)
+      setShowExperienceLevel(profile?.show_experience_level ?? true)
+      setShowFitnessGoal(profile?.show_fitness_goal ?? true)
+
       setLoading(false)
     }
     boot()
@@ -117,6 +131,11 @@ export default function EditProfileScreen() {
     const next = generateSeeds()
     setGridSeeds(next)
     // keep current selection unless it was in the old grid (it may have been from profile)
+  }
+
+  async function savePrivacyField(field: string, value: boolean) {
+    if (!userId) return
+    await supabase.from('profiles').update({ [field]: value }).eq('id', userId)
   }
 
   async function handleSave() {
@@ -357,6 +376,31 @@ export default function EditProfileScreen() {
 
         <View style={styles.divider} />
 
+        {/* Privacy */}
+        <Text style={styles.sectionLabel}>What others can see on your profile</Text>
+        {([
+          { field: 'show_gyms_visited',        label: 'Gyms visited',          value: showGymsVisited,        set: setShowGymsVisited },
+          { field: 'show_connections_started',  label: 'Connections started',   value: showConnectionsStarted, set: setShowConnectionsStarted },
+          { field: 'show_current_gym',          label: 'Current gym',           value: showCurrentGym,         set: setShowCurrentGym },
+          { field: 'show_experience_level',     label: 'Experience level',      value: showExperienceLevel,    set: setShowExperienceLevel },
+          { field: 'show_fitness_goal',         label: 'Fitness goal',          value: showFitnessGoal,        set: setShowFitnessGoal },
+        ] as { field: string; label: string; value: boolean; set: (v: boolean) => void }[]).map((item) => (
+          <View key={item.field} style={styles.privacyRow}>
+            <Text style={styles.privacyLabel}>{item.label}</Text>
+            <Switch
+              value={item.value}
+              onValueChange={(v) => {
+                item.set(v)
+                savePrivacyField(item.field, v)
+              }}
+              trackColor={{ false: '#C8C2BB', true: colors.accent }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        ))}
+
+        <View style={styles.divider} />
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity
@@ -579,6 +623,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     textAlign: 'center',
+  },
+
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  privacyLabel: {
+    fontSize: 14,
+    color: colors.textPrimary,
   },
 
   saveBtn: {

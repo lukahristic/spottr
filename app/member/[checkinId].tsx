@@ -52,6 +52,13 @@ export default function MemberScreen() {
   const [memberBio, setMemberBio]             = useState<string | null>(null)
   const [memberAvatarSeed, setMemberAvatarSeed] = useState<string | null>(null)
   const [memberAvatarStyle, setMemberAvatarStyle] = useState<AvatarStyle>('thumbs')
+  const [privacy, setPrivacy] = useState({
+    show_current_gym:         true,
+    show_experience_level:    true,
+    show_fitness_goal:        true,
+    show_gyms_visited:        true,
+    show_connections_started: true,
+  })
 
   const [isBlocked, setIsBlocked]           = useState(false)
   const [blocking, setBlocking]             = useState(false)
@@ -75,12 +82,21 @@ export default function MemberScreen() {
       if (checkinData?.user_id) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('bio, avatar_seed, avatar_style')
+          .select('bio, avatar_seed, avatar_style, show_current_gym, show_experience_level, show_fitness_goal, show_gyms_visited, show_connections_started')
           .eq('id', checkinData.user_id)
           .maybeSingle()
         setMemberBio(profile?.bio ?? null)
         setMemberAvatarSeed(profile?.avatar_seed ?? null)
         setMemberAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
+        if (profile) {
+          setPrivacy({
+            show_current_gym:         profile.show_current_gym         ?? true,
+            show_experience_level:    profile.show_experience_level    ?? true,
+            show_fitness_goal:        profile.show_fitness_goal        ?? true,
+            show_gyms_visited:        profile.show_gyms_visited        ?? true,
+            show_connections_started: profile.show_connections_started ?? true,
+          })
+        }
       }
 
       if (user && checkinData) {
@@ -311,19 +327,23 @@ export default function MemberScreen() {
             <Text style={styles.memberBio}>{memberBio}</Text>
           ) : null}
 
-          <View style={styles.vibeBadge}>
-            <Text style={styles.vibeBadgeText}>{checkin.vibe}</Text>
-          </View>
+          {privacy.show_current_gym && (
+            <>
+              <View style={styles.vibeBadge}>
+                <Text style={styles.vibeBadgeText}>{checkin.vibe}</Text>
+              </View>
 
-          {checkin.custom_vibe ? (
-            <Text style={styles.memberCustomVibe}>{checkin.custom_vibe}</Text>
-          ) : null}
+              {checkin.custom_vibe ? (
+                <Text style={styles.memberCustomVibe}>{checkin.custom_vibe}</Text>
+              ) : null}
 
-          {checkin.open_to_chat ? (
-            <View style={styles.opennessChip}>
-              <Text style={styles.opennessChipText}>Open to chat</Text>
-            </View>
-          ) : null}
+              {checkin.open_to_chat ? (
+                <View style={styles.opennessChip}>
+                  <Text style={styles.opennessChipText}>Open to chat</Text>
+                </View>
+              ) : null}
+            </>
+          )}
 
           <View style={styles.divider} />
 
