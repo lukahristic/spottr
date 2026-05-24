@@ -81,6 +81,7 @@ export default async function PartnersPage() {
                     <td className="px-5 py-3 text-right">
                       <form action={removePartner}>
                         <input type="hidden" name="admin_id" value={a.admin_id} />
+                        <input type="hidden" name="user_id"  value={a.user_id} />
                         <button type="submit" className="text-[#f87171] text-xs font-semibold hover:text-red-300 transition-colors">
                           Revoke
                         </button>
@@ -127,6 +128,7 @@ export default async function PartnersPage() {
                     <td className="px-5 py-3 text-right">
                       <form action={removePartner}>
                         <input type="hidden" name="admin_id" value={a.admin_id} />
+                        <input type="hidden" name="user_id"  value={a.user_id} />
                         <button type="submit" className="text-[#f87171] text-xs font-semibold hover:text-red-300 transition-colors">
                           Remove
                         </button>

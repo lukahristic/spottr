@@ -200,8 +200,23 @@ export async function removePartner(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
 
-  const adminId = formData.get('admin_id') as string
+  const adminId  = formData.get('admin_id') as string
+  const userId   = formData.get('user_id')  as string
   if (!adminId) return
+
+  // For pending (unconfirmed) invites, also delete the auth user so the email
+  // can be re-invited cleanly later.
+  if (userId && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const adminClient = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+    const { data: { users } } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
+    const authUser = users.find((u) => u.id === userId)
+    if (authUser && !authUser.email_confirmed_at) {
+      await adminClient.auth.admin.deleteUser(userId)
+    }
+  }
 
   await supabase.rpc('remove_gym_admin', { p_id: adminId })
 

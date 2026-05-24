@@ -5,24 +5,30 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignInPage() {
-  const [email, setEmail]       = useState('')
+  const [email, setEmail]     = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError]       = useState<string | null>(null)
-  const [loading, setLoading]   = useState(false)
+  const [error, setError]     = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  // Handle invite-link and magic-link flows where Supabase redirects to the
-  // site root (when redirectTo isn't in the allowed list) instead of /auth/redirect.
-  // Also handles returning users who are already signed in.
+  // Capture the URL hash type BEFORE the Supabase client processes and clears it.
+  // useState initializer is synchronous (runs at render, before any useEffect).
+  const [hashType] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    return new URLSearchParams(window.location.hash.slice(1)).get('type')
+  })
+
   useEffect(() => {
     const supabase = createClient()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
-        router.replace('/auth/redirect')
+        // Pass the invite type along so /auth/redirect can show the password screen.
+        const dest = hashType === 'invite' ? '/auth/redirect?from=invite' : '/auth/redirect'
+        router.replace(dest)
       }
     })
     return () => subscription.unsubscribe()
-  }, [router])
+  }, [router, hashType])
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault()
@@ -34,7 +40,7 @@ export default function SignInPage() {
       setError('Invalid email or password.')
       setLoading(false)
     }
-    // redirect is handled by onAuthStateChange above
+    // redirect handled by onAuthStateChange above
   }
 
   return (

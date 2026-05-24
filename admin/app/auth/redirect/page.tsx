@@ -15,33 +15,34 @@ type Stage = 'loading' | 'set-password' | 'redirecting'
 
 export default function AuthRedirectPage() {
   const router = useRouter()
-  const [stage, setStage]       = useState<Stage>('loading')
-  const [session, setSession]   = useState<Session | null>(null)
+  const [stage, setStage]     = useState<Stage>('loading')
+  const [session, setSession] = useState<Session | null>(null)
   const [password, setPassword] = useState('')
-  const [confirm, setConfirm]   = useState('')
-  const [error, setError]       = useState<string | null>(null)
-  const [saving, setSaving]     = useState(false)
+  const [confirm, setConfirm] = useState('')
+  const [error, setError]     = useState<string | null>(null)
+  const [saving, setSaving]   = useState(false)
+
+  // Capture invite context BEFORE the Supabase client processes and clears
+  // the URL hash. useState initializer is synchronous (runs before useEffect).
+  // Also accept ?from=invite passed by the sign-in page when it catches the hash first.
+  const [isInviteFlow] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    const hashType   = new URLSearchParams(window.location.hash.slice(1)).get('type')
+    const queryFrom  = new URLSearchParams(window.location.search).get('from')
+    return hashType === 'invite' || queryFrom === 'invite'
+  })
 
   useEffect(() => {
     const supabase = createClient()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && sess) {
-        // Invite flow: user has no password yet — prompt them to set one
-        const isInvite = sess.user.app_metadata?.provider === 'email' &&
-                         !sess.user.last_sign_in_at
-
-        // Also detect via URL hash type=invite (set before the client exchanges the token)
-        const hashType = typeof window !== 'undefined'
-          ? new URLSearchParams(window.location.hash.slice(1)).get('type')
-          : null
-
-        if (isInvite || hashType === 'invite') {
+        if (isInviteFlow) {
           setSession(sess)
           setStage('set-password')
           return
         }
-
+        setStage('redirecting')
         await redirectByRole(supabase, router)
       } else if (event === 'INITIAL_SESSION' && !sess) {
         router.replace('/')
@@ -49,7 +50,7 @@ export default function AuthRedirectPage() {
     })
 
     return () => subscription.unsubscribe()
-  }, [router])
+  }, [router, isInviteFlow])
 
   async function handleSetPassword(e: React.FormEvent) {
     e.preventDefault()
@@ -79,7 +80,7 @@ export default function AuthRedirectPage() {
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <h1 className="text-2xl font-bold text-white mb-1">Set your password</h1>
-          <p className="text-[#888] text-sm mb-6">
+          <p className="text-[#888] text-sm mb-2">
             Welcome to Spottr. Create a password to secure your account.
           </p>
           <p className="text-[#555] text-xs mb-6">{session?.user.email}</p>
@@ -87,7 +88,7 @@ export default function AuthRedirectPage() {
           <form onSubmit={handleSetPassword} className="space-y-3">
             <input
               type="password"
-              placeholder="New password"
+              placeholder="New password (min 8 chars)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
