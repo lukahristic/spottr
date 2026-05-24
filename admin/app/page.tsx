@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -10,22 +10,31 @@ export default function SignInPage() {
   const [error, setError]       = useState<string | null>(null)
   const [loading, setLoading]   = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+
+  // Handle invite-link and magic-link flows where Supabase redirects to the
+  // site root (when redirectTo isn't in the allowed list) instead of /auth/redirect.
+  // Also handles returning users who are already signed in.
+  useEffect(() => {
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        router.replace('/auth/redirect')
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [router])
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
-
+    const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-
     if (error) {
       setError('Invalid email or password.')
       setLoading(false)
-      return
     }
-
-    router.push('/auth/redirect')
+    // redirect is handled by onAuthStateChange above
   }
 
   return (
