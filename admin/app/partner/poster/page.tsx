@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 export default function PosterPage() {
   const [gymName, setGymName] = useState<string | null>(null)
   const [slug, setSlug]       = useState<string | null>(null)
+  const [gymCode, setGymCode] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -18,12 +19,13 @@ export default function PosterPage() {
 
       const { data: gym } = await supabase
         .from('gyms')
-        .select('name, slug')
+        .select('name, slug, gym_code')
         .eq('id', gymId)
         .maybeSingle()
 
       setGymName(gym?.name ?? null)
       setSlug(gym?.slug ?? null)
+      setGymCode(gym?.gym_code ?? null)
       setLoading(false)
     }
     load()
@@ -105,9 +107,19 @@ export default function PosterPage() {
           Once added, tap <strong style={{ color: '#111' }}>&ldquo;I&apos;m in&rdquo;</strong> when you arrive.
         </div>
 
+        {/* Gym code fallback */}
+        {gymCode && (
+          <div style={{
+            marginTop: 28, padding: '12px 24px', background: '#f5f5f5',
+            borderRadius: 12, fontSize: 14, color: '#555', textAlign: 'center',
+          }}>
+            Can&apos;t scan? Enter code manually: <strong style={{ color: '#111', fontFamily: 'monospace', fontSize: 16 }}>{gymCode}</strong>
+          </div>
+        )}
+
         {/* App store hint */}
         <div style={{
-          marginTop: 40, padding: '12px 24px', background: '#f5f5f5',
+          marginTop: 16, padding: '12px 24px', background: '#f5f5f5',
           borderRadius: 12, fontSize: 12, color: '#888', textAlign: 'center',
         }}>
           Don&apos;t have Spottr yet? Download it from the App Store or Google Play.

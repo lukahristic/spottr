@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { updateMyGym, uploadLogo } from '../actions'
 import OpeningHours from '@/components/OpeningHours'
 import LogoUpload from '@/components/LogoUpload'
+import GeoDetect from '@/components/GeoDetect'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,15 +65,11 @@ export default async function PartnerGymPage() {
               />
             </div>
 
-            <div>
-              <label className="text-[#888] text-xs block mb-1.5">Address</label>
-              <input
-                name="address"
-                defaultValue={gym?.address ?? ''}
-                placeholder="Street, city"
-                className="w-full bg-[#111] text-white placeholder-[#444] rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A]"
-              />
-            </div>
+            <GeoDetect
+              initialAddress={gym?.address ?? ''}
+              initialLat={gym?.latitude != null ? String(gym.latitude) : ''}
+              initialLng={gym?.longitude != null ? String(gym.longitude) : ''}
+            />
 
             <div>
               <label className="text-[#888] text-xs block mb-1.5">Short location (shown in app)</label>
@@ -91,26 +88,6 @@ export default async function PartnerGymPage() {
           <p className="text-[#888] text-xs mb-4">Set your location so members can check in by GPS.</p>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[#888] text-xs block mb-1.5">Latitude</label>
-              <input
-                name="latitude"
-                type="number"
-                step="any"
-                defaultValue={gym?.latitude ?? ''}
-                className="w-full bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A]"
-              />
-            </div>
-            <div>
-              <label className="text-[#888] text-xs block mb-1.5">Longitude</label>
-              <input
-                name="longitude"
-                type="number"
-                step="any"
-                defaultValue={gym?.longitude ?? ''}
-                className="w-full bg-[#111] text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#DFAF3A]"
-              />
-            </div>
             <div>
               <label className="text-[#888] text-xs block mb-1.5">Check-in radius (meters)</label>
               <input

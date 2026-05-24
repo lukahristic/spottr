@@ -75,6 +75,7 @@ export default function YourGymsScreen() {
   const [vibe, setVibe]                   = useState<Vibe>('Just showing up')
   const [customVibe, setCustomVibe]       = useState('')
   const [openToChat, setOpenToChat]       = useState(false)
+  const [userName, setUserName]           = useState<string | null>(null)
   const [womenVerified, setWomenVerified] = useState(false)
   const [womenOnlyMode, setWomenOnlyMode] = useState(false)
   const [loading, setLoading]             = useState(false)
@@ -103,7 +104,7 @@ export default function YourGymsScreen() {
     if (!user) { setGymsLoading(false); return }
 
     const [profileRes, userGymsRes, checkinRes] = await Promise.all([
-      supabase.from('profiles').select('women_verified').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('name, women_verified').eq('id', user.id).maybeSingle(),
       supabase
         .from('user_gyms')
         .select(`
@@ -124,6 +125,7 @@ export default function YourGymsScreen() {
         .maybeSingle(),
     ])
 
+    setUserName(profileRes.data?.name ?? null)
     setWomenVerified(profileRes.data?.women_verified ?? false)
     setCheckedInGymId(checkinRes.data?.gym_id ?? null)
 
@@ -278,6 +280,7 @@ export default function YourGymsScreen() {
     const now  = new Date().toISOString()
 
     const payload = {
+      name:           userName,
       vibe,
       custom_vibe:    customVibe.trim() || null,
       open_to_chat:   openToChat,

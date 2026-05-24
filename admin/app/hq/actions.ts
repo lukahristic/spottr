@@ -51,12 +51,13 @@ export async function createGym(formData: FormData) {
   const name     = (formData.get('name')      as string).trim()
   const location = (formData.get('location')  as string).trim()
   const address  = (formData.get('address')   as string).trim()
-  const gymCode  = (formData.get('gym_code')  as string).trim().toUpperCase()
-  const latRaw   = (formData.get('latitude')  as string).trim()
-  const lngRaw   = (formData.get('longitude') as string).trim()
-  const radiusRaw = (formData.get('checkin_radius_m') as string).trim()
+  const gymCodeRaw  = (formData.get('gym_code') as string).trim().toUpperCase()
+  const gymCode     = gymCodeRaw || Math.random().toString(36).slice(2, 7).toUpperCase()
+  const latRaw      = (formData.get('latitude')  as string).trim()
+  const lngRaw      = (formData.get('longitude') as string).trim()
+  const radiusRaw   = (formData.get('checkin_radius_m') as string).trim()
 
-  if (!name || !location || !address || !gymCode) return
+  if (!name || !location || !address) return
 
   const latitude       = latRaw   ? parseFloat(latRaw)   : null
   const longitude      = lngRaw   ? parseFloat(lngRaw)   : null
@@ -94,7 +95,7 @@ export async function invitePartner(formData: FormData) {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
 
-  const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL ?? ''
+  const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3000'
   const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${adminUrl}/auth/redirect`,
   })
