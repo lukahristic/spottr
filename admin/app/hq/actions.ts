@@ -180,11 +180,16 @@ export async function invitePartner(
     return { error: inviteErr?.message ?? 'Failed to send invite. Please try again.' }
   }
 
-  await supabase.rpc('add_gym_admin', {
+  const { error: rpcErr } = await supabase.rpc('add_gym_admin', {
     p_user_id: inviteData.user.id,
     p_gym_id:  gymId,
     p_role:    role,
   })
+
+  if (rpcErr) {
+    console.error('add_gym_admin failed', rpcErr)
+    return { error: 'Invite sent but failed to assign gym access. Please try again.' }
+  }
 
   revalidatePath('/hq/partners')
   return { success: true, resent: !!existingAdmin, email }
