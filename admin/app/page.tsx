@@ -55,7 +55,7 @@ export default function SignInPage() {
       setError(error.message)
       return
     }
-    setNotice(`If ${email} was invited, a 6-digit code is on its way.`)
+    setNotice(`If ${email} was invited, a sign-in code is on its way.`)
     setStage('verify-code')
   }
 
@@ -145,7 +145,7 @@ export default function SignInPage() {
         {stage === 'request-code' && (
           <>
             <p className="text-[#888] text-sm mb-8">
-              Enter your email and we&apos;ll send you a 6-digit sign-in code.
+              Enter your email and we&apos;ll send you a sign-in code.
             </p>
             <form onSubmit={handleRequestCode} className="space-y-3">
               <input type="email" placeholder="Email" value={email} required
@@ -167,15 +167,15 @@ export default function SignInPage() {
 
         {stage === 'verify-code' && (
           <>
-            <p className="text-[#888] text-sm mb-2">Enter the 6-digit code we emailed you.</p>
+            <p className="text-[#888] text-sm mb-2">Enter the code we emailed you.</p>
             {notice && <p className="text-[#DFAF3A] text-xs mb-6">{notice}</p>}
             <form onSubmit={handleVerifyCode} className="space-y-3">
               <input
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="123456"
+                maxLength={8}
+                placeholder="12345678"
                 value={code}
                 required
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}

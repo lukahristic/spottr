@@ -32,7 +32,7 @@ export function InviteForm({ gyms }: { gyms: Gym[] }) {
     <section className="bg-[#1C1C1C] rounded-2xl p-6 mb-5">
       <h2 className="font-semibold text-base mb-1">Invite partner</h2>
       <p className="text-[#888] text-xs mb-4">
-        Enter their email — we&apos;ll email them a 6-digit sign-in code. They don&apos;t need a Spottr account first.
+        Enter their email — we&apos;ll email them a sign-in code. They don&apos;t need a Spottr account first.
       </p>
 
       {state?.success && (
