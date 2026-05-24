@@ -124,75 +124,71 @@ export async function invitePartner(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
-  const adminUrl    = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3000'
-  const redirectTo  = `${adminUrl}/auth/redirect`
 
-  // Fetch gym_admins + auth users in parallel
+  // Look up the existing gym_admin assignment + auth user (if any) in parallel.
   const [{ data: adminsRaw }, { data: { users: authUsers } }] = await Promise.all([
     supabase.rpc('list_gym_admins'),
     adminClient.auth.admin.listUsers({ perPage: 1000 }),
   ])
 
-  const admins       = (adminsRaw as Array<{ admin_id: string; email: string; gym_id: string; user_id: string }> | null) ?? []
+  const admins        = (adminsRaw as Array<{ admin_id: string; email: string; gym_id: string; user_id: string }> | null) ?? []
   const existingAdmin = admins.find((a) => a.email === email && a.gym_id === gymId)
-  const authUser      = authUsers.find((u) => u.email === email)
-  const isConfirmed   = !!authUser?.email_confirmed_at
+  const authUser      = authUsers.find((u) => u.email?.toLowerCase() === email)
+  const passwordSet   = !!authUser?.user_metadata?.password_set
 
-  // Case 1: already a gym admin for this gym
+  // Already assigned to this gym: active partners are done; pending ones can
+  // just re-request a code, so treat re-invite as a harmless resend.
   if (existingAdmin) {
-    if (isConfirmed) {
-      return { error: `${email} is already an active partner for this gym.` }
-    }
-    // Pending invite (unconfirmed) — Supabase blocks re-invite for existing users.
-    // Delete the stale auth user + gym_admin record, then re-invite fresh.
-    await Promise.all([
-      adminClient.auth.admin.deleteUser(authUser!.id),
-      supabase.rpc('remove_gym_admin', { p_id: existingAdmin.admin_id }),
-    ])
-    // Fall through to fresh invite below
+    if (passwordSet) return { error: `${email} is already an active partner for this gym.` }
+    await sendPartnerCode(email)
+    return { success: true, resent: true, email }
   }
 
-  // Case 2: user has a confirmed Supabase account but is NOT yet a gym admin here
-  if (!existingAdmin && authUser && isConfirmed) {
-    await supabase.rpc('add_gym_admin', {
-      p_user_id: authUser.id,
-      p_gym_id:  gymId,
-      p_role:    role,
+  // Provision the auth account if it doesn't exist yet. email_confirm:true so
+  // no confirmation email (consumable link) is sent — onboarding is OTP-only.
+  let userId = authUser?.id
+  if (!userId) {
+    const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+      email,
+      email_confirm: true,
     })
-    revalidatePath('/hq/partners')
-    return { success: true, existing: true, email }
-  }
-
-  // Case 2b: unconfirmed auth user exists but has no gym_admin record for this gym
-  // (e.g. invited to a different gym before, or record was manually removed)
-  // Delete the stale auth user so Supabase will accept a fresh invite.
-  if (!existingAdmin && authUser && !isConfirmed) {
-    await adminClient.auth.admin.deleteUser(authUser.id)
-  }
-
-  // Case 3: new user or cleaned-up pending — send a fresh invite email
-  const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
-  })
-
-  if (inviteErr || !inviteData?.user) {
-    console.error('invite failed', inviteErr)
-    return { error: inviteErr?.message ?? 'Failed to send invite. Please try again.' }
+    if (createErr || !created?.user) {
+      console.error('createUser failed', createErr)
+      return { error: createErr?.message ?? 'Failed to create partner account.' }
+    }
+    userId = created.user.id
   }
 
   const { error: rpcErr } = await supabase.rpc('add_gym_admin', {
-    p_user_id: inviteData.user.id,
+    p_user_id: userId,
     p_gym_id:  gymId,
     p_role:    role,
   })
 
   if (rpcErr) {
     console.error('add_gym_admin failed', rpcErr)
-    return { error: 'Invite sent but failed to assign gym access. Please try again.' }
+    return { error: 'Failed to assign gym access. Please try again.' }
   }
 
+  await sendPartnerCode(email)
+
   revalidatePath('/hq/partners')
-  return { success: true, resent: !!existingAdmin, email }
+  return { success: true, existing: !!authUser, email }
+}
+
+// Email the partner a 6-digit sign-in code (no clickable link to consume).
+// Uses a stateless anon client so it never touches the HQ admin's session.
+async function sendPartnerCode(email: string) {
+  const otpClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  )
+  const { error } = await otpClient.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  })
+  if (error) console.error('sendPartnerCode failed', error)
 }
 
 export async function removePartner(formData: FormData) {
@@ -204,21 +200,26 @@ export async function removePartner(formData: FormData) {
   const userId   = formData.get('user_id')  as string
   if (!adminId) return
 
-  // For pending (unconfirmed) invites, also delete the auth user so the email
-  // can be re-invited cleanly later.
+  // Remove the gym assignment first.
+  await supabase.rpc('remove_gym_admin', { p_id: adminId })
+
+  // If this user has no remaining gym_admin rows, their auth account exists
+  // only for the partner portal — delete it so Authentication stays clean and
+  // the email can be re-invited fresh. The platform admin keeps their row, so
+  // this never removes them.
   if (userId && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const adminClient = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     )
-    const { data: { users } } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
-    const authUser = users.find((u) => u.id === userId)
-    if (authUser && !authUser.email_confirmed_at) {
+    const { count } = await adminClient
+      .from('gym_admins')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    if (!count) {
       await adminClient.auth.admin.deleteUser(userId)
     }
   }
-
-  await supabase.rpc('remove_gym_admin', { p_id: adminId })
 
   revalidatePath('/hq/partners')
 }

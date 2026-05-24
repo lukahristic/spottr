@@ -26,8 +26,11 @@ export default async function PartnersPage() {
 
   const admins = (adminsRaw as AdminRow[] | null) ?? []
 
-  // Fetch auth users to detect pending (unconfirmed invite) vs active (confirmed account)
-  let confirmedAt: Record<string, string | null> = {}
+  // Detect active (finished setup, has a password) vs pending (provisioned but
+  // hasn't set a password yet). We key off the password_set metadata flag, not
+  // email_confirmed_at — an opened email link confirms the address without a
+  // password ever being set, which would otherwise misclassify pending invites.
+  const passwordSet: Record<string, boolean> = {}
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const adminClient = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,12 +38,12 @@ export default async function PartnersPage() {
     )
     const { data: { users } } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
     for (const u of users) {
-      confirmedAt[u.id] = u.email_confirmed_at ?? null
+      passwordSet[u.id] = !!u.user_metadata?.password_set
     }
   }
 
-  const pending = admins.filter((a) => !confirmedAt[a.user_id])
-  const active  = admins.filter((a) =>  confirmedAt[a.user_id])
+  const pending = admins.filter((a) => !passwordSet[a.user_id])
+  const active  = admins.filter((a) =>  passwordSet[a.user_id])
 
   return (
     <div className="max-w-4xl">
