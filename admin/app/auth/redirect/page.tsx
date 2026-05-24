@@ -36,12 +36,20 @@ export default function AuthRedirectPage() {
     const supabase = createClient()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && sess) {
-        if (isInviteFlow) {
+      if (isInviteFlow) {
+        // For invite links: only act on SIGNED_IN so we get the invited user's
+        // session, not an existing session from a different logged-in account.
+        // If INITIAL_SESSION fires with no session (fresh browser/incognito),
+        // do nothing — SIGNED_IN will follow once the hash token is exchanged.
+        if (event === 'SIGNED_IN' && sess) {
           setSession(sess)
           setStage('set-password')
-          return
         }
+        return
+      }
+
+      // Normal flow (not an invite link)
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && sess) {
         setStage('redirecting')
         await redirectByRole(supabase, router)
       } else if (event === 'INITIAL_SESSION' && !sess) {
