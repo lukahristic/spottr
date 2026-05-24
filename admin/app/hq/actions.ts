@@ -97,7 +97,18 @@ export async function createGym(
   return { success: true }
 }
 
-export async function invitePartner(formData: FormData) {
+type InviteState = {
+  success?: boolean
+  resent?: boolean
+  existing?: boolean
+  email?: string
+  error?: string
+} | null
+
+export async function invitePartner(
+  _prev: InviteState,
+  formData: FormData,
+): Promise<InviteState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
@@ -106,23 +117,67 @@ export async function invitePartner(formData: FormData) {
   const gymId  = (formData.get('gym_id') as string).trim()
   const role   = (formData.get('role')   as string) || 'owner'
 
-  if (!email || !gymId) return
-
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return
+  if (!email || !gymId) return { error: 'Email and gym are required.' }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return { error: 'Server configuration error.' }
 
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
+  const adminUrl    = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3000'
+  const redirectTo  = `${adminUrl}/auth/redirect`
 
-  const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:3000'
+  // Fetch gym_admins + auth users in parallel
+  const [{ data: adminsRaw }, { data: { users: authUsers } }] = await Promise.all([
+    supabase.rpc('list_gym_admins'),
+    adminClient.auth.admin.listUsers({ perPage: 1000 }),
+  ])
+
+  const admins       = (adminsRaw as Array<{ admin_id: string; email: string; gym_id: string; user_id: string }> | null) ?? []
+  const existingAdmin = admins.find((a) => a.email === email && a.gym_id === gymId)
+  const authUser      = authUsers.find((u) => u.email === email)
+  const isConfirmed   = !!authUser?.email_confirmed_at
+
+  // Case 1: already a gym admin for this gym
+  if (existingAdmin) {
+    if (isConfirmed) {
+      return { error: `${email} is already an active partner for this gym.` }
+    }
+    // Pending invite (unconfirmed) — Supabase blocks re-invite for existing users.
+    // Delete the stale auth user + gym_admin record, then re-invite fresh.
+    await Promise.all([
+      adminClient.auth.admin.deleteUser(authUser!.id),
+      supabase.rpc('remove_gym_admin', { p_id: existingAdmin.admin_id }),
+    ])
+    // Fall through to fresh invite below
+  }
+
+  // Case 2: user has a confirmed Supabase account but is NOT yet a gym admin here
+  if (!existingAdmin && authUser && isConfirmed) {
+    await supabase.rpc('add_gym_admin', {
+      p_user_id: authUser.id,
+      p_gym_id:  gymId,
+      p_role:    role,
+    })
+    revalidatePath('/hq/partners')
+    return { success: true, existing: true, email }
+  }
+
+  // Case 2b: unconfirmed auth user exists but has no gym_admin record for this gym
+  // (e.g. invited to a different gym before, or record was manually removed)
+  // Delete the stale auth user so Supabase will accept a fresh invite.
+  if (!existingAdmin && authUser && !isConfirmed) {
+    await adminClient.auth.admin.deleteUser(authUser.id)
+  }
+
+  // Case 3: new user or cleaned-up pending — send a fresh invite email
   const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${adminUrl}/auth/redirect`,
+    redirectTo,
   })
 
   if (inviteErr || !inviteData?.user) {
     console.error('invite failed', inviteErr)
-    return
+    return { error: inviteErr?.message ?? 'Failed to send invite. Please try again.' }
   }
 
   await supabase.rpc('add_gym_admin', {
@@ -132,6 +187,7 @@ export async function invitePartner(formData: FormData) {
   })
 
   revalidatePath('/hq/partners')
+  return { success: true, resent: !!existingAdmin, email }
 }
 
 export async function removePartner(formData: FormData) {
