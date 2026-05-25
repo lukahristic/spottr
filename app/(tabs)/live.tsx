@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -7,6 +7,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
+  Switch,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
@@ -14,6 +20,36 @@ import { Pencil, Zap } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { Avatar, AvatarStyle } from '../../components/Avatar'
 import { colors } from '../../.claude/tokens/colors'
+
+type Vibe =
+  | 'Locked in'
+  | 'Finding my rhythm'
+  | 'Taking it easy'
+  | 'Quick session'
+  | 'In between sets'
+  | 'Just showing up'
+
+const VIBES: Vibe[] = [
+  'Locked in',
+  'Finding my rhythm',
+  'Taking it easy',
+  'Quick session',
+  'In between sets',
+  'Just showing up',
+]
+
+const VIBE_PLACEHOLDERS = [
+  'leg day, send prayers',
+  'cardio? unfortunately',
+  'winging it today',
+  'pretending I have a plan',
+  'first time, be nice',
+  'lost but committed',
+  'Google said this works',
+  'manifesting the gains',
+  'not quitting, just resting',
+  'figuring it out slowly',
+]
 
 type CheckIn = {
   id: string
@@ -37,21 +73,37 @@ function relativeTime(checkedInAt: string): string {
 }
 
 export default function LiveListScreen() {
-  const [checkins, setCheckins]         = useState<CheckIn[]>([])
+  const [checkins, setCheckins]           = useState<CheckIn[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [isCheckedIn, setIsCheckedIn]   = useState(false)
-  const [loading, setLoading]           = useState(true)
-  const [refreshing, setRefreshing]     = useState(false)
-  const [error, setError]               = useState<string | null>(null)
-  const [blockedIds, setBlockedIds]     = useState<Set<string>>(new Set())
-  const [avatarMap, setAvatarMap]       = useState<Record<string, { seed: string; style: AvatarStyle }>>({})
+  const [isCheckedIn, setIsCheckedIn]     = useState(false)
+  const [loading, setLoading]             = useState(true)
+  const [refreshing, setRefreshing]       = useState(false)
+  const [error, setError]                 = useState<string | null>(null)
+  const [blockedIds, setBlockedIds]       = useState<Set<string>>(new Set())
+  const [avatarMap, setAvatarMap]         = useState<Record<string, { seed: string; style: AvatarStyle }>>({})
 
-  const [myName, setMyName]               = useState<string | null>(null)
-  const [myVibe, setMyVibe]               = useState<string | null>(null)
-  const [myCustomVibe, setMyCustomVibe]   = useState<string | null>(null)
-  const [myOpenToChat, setMyOpenToChat]   = useState(false)
+  const [myCheckinId, setMyCheckinId]         = useState<string | null>(null)
+  const [myName, setMyName]                   = useState<string | null>(null)
+  const [myVibe, setMyVibe]                   = useState<string | null>(null)
+  const [myCustomVibe, setMyCustomVibe]       = useState<string | null>(null)
+  const [myOpenToChat, setMyOpenToChat]       = useState(false)
   const [myWomenOnlyMode, setMyWomenOnlyMode] = useState(false)
+  const [womenVerified, setWomenVerified]     = useState(false)
   const myWomenOnlyModeRef = useRef(false)
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal]       = useState(false)
+  const [editVibe, setEditVibe]                 = useState<Vibe>('Just showing up')
+  const [editCustomVibe, setEditCustomVibe]     = useState('')
+  const [editOpenToChat, setEditOpenToChat]     = useState(false)
+  const [editWomenOnlyMode, setEditWomenOnlyMode] = useState(false)
+  const [editSaving, setEditSaving]             = useState(false)
+  const [editError, setEditError]               = useState<string | null>(null)
+
+  const placeholder = useMemo(
+    () => VIBE_PLACEHOLDERS[Math.floor(Math.random() * VIBE_PLACEHOLDERS.length)],
+    []
+  )
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -70,16 +122,26 @@ export default function LiveListScreen() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
-    const { data: myCheckin } = await supabase
-      .from('checkins')
-      .select('id, gym_id, name, vibe, custom_vibe, open_to_chat, women_only_mode')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .maybeSingle()
+    const [{ data: myCheckin }, { data: profile }] = await Promise.all([
+      supabase
+        .from('checkins')
+        .select('id, gym_id, name, vibe, custom_vibe, open_to_chat, women_only_mode')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('women_verified')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ])
+
+    setWomenVerified(profile?.women_verified ?? false)
 
     if (!myCheckin?.gym_id) {
       setIsCheckedIn(false)
       setCheckins([])
+      setMyCheckinId(null)
       setMyName(null)
       setMyVibe(null)
       setMyCustomVibe(null)
@@ -90,6 +152,7 @@ export default function LiveListScreen() {
     }
 
     setIsCheckedIn(true)
+    setMyCheckinId(myCheckin.id)
     setMyName(myCheckin.name)
     setMyVibe(myCheckin.vibe)
     setMyCustomVibe(myCheckin.custom_vibe)
@@ -108,7 +171,7 @@ export default function LiveListScreen() {
       .order('checked_in_at', { ascending: false })
 
     if (dbError) {
-      setError('Could not load check-ins.')
+      setError('Couldn\'t load check-ins.')
       return gymId
     }
 
@@ -135,6 +198,45 @@ export default function LiveListScreen() {
     setRefreshing(true)
     await fetchCheckins()
     setRefreshing(false)
+  }
+
+  function openEditModal() {
+    setEditVibe((myVibe as Vibe) ?? 'Just showing up')
+    setEditCustomVibe(myCustomVibe ?? '')
+    setEditOpenToChat(myOpenToChat)
+    setEditWomenOnlyMode(myWomenOnlyMode)
+    setEditError(null)
+    setShowEditModal(true)
+  }
+
+  async function handleUpdateStatus() {
+    if (!myCheckinId || editSaving) return
+    setEditSaving(true)
+    setEditError(null)
+
+    const { error: dbError } = await supabase
+      .from('checkins')
+      .update({
+        vibe:            editVibe,
+        custom_vibe:     editCustomVibe.trim() || null,
+        open_to_chat:    editOpenToChat,
+        women_only_mode: womenVerified ? editWomenOnlyMode : false,
+      })
+      .eq('id', myCheckinId)
+
+    setEditSaving(false)
+
+    if (dbError) {
+      setEditError('That didn\'t go through. Try again.')
+      return
+    }
+
+    // Update local display state
+    setMyVibe(editVibe)
+    setMyCustomVibe(editCustomVibe.trim() || null)
+    setMyOpenToChat(editOpenToChat)
+    setMyWomenOnlyMode(womenVerified ? editWomenOnlyMode : false)
+    setShowEditModal(false)
   }
 
   useEffect(() => {
@@ -241,6 +343,105 @@ export default function LiveListScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Status edit modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOuter}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={styles.modalTitle}>Your status</Text>
+
+                <Text style={styles.modalSectionLabel}>Vibe</Text>
+                <View style={styles.chipRow}>
+                  {VIBES.map((v) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.chip, editVibe === v && styles.chipSelected]}
+                      onPress={() => setEditVibe(v)}
+                      activeOpacity={0.7}
+                      disabled={editSaving}
+                    >
+                      <Text style={[styles.chipText, editVibe === v && styles.chipTextSelected]}>{v}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TextInput
+                  style={styles.customInput}
+                  placeholder={placeholder}
+                  placeholderTextColor={colors.textSecondary}
+                  value={editCustomVibe}
+                  onChangeText={(t) => setEditCustomVibe(t.slice(0, 30))}
+                  maxLength={30}
+                  returnKeyType="done"
+                  editable={!editSaving}
+                />
+                <Text style={styles.charCount}>{editCustomVibe.length}/30</Text>
+
+                <Text style={[styles.modalSectionLabel, { marginTop: 16 }]}>Openness</Text>
+                <View style={styles.toggleRow}>
+                  <Text style={styles.toggleLabel}>Open to chat</Text>
+                  <Switch
+                    value={editOpenToChat}
+                    onValueChange={setEditOpenToChat}
+                    trackColor={{ false: '#C8C2BB', true: colors.accent }}
+                    thumbColor="#FFFFFF"
+                    disabled={editSaving}
+                  />
+                </View>
+
+                {womenVerified && (
+                  <View style={[styles.toggleRow, { marginTop: 8 }]}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.toggleLabel}>Women's space</Text>
+                      <Text style={styles.toggleHint}>Only visible to other verified women</Text>
+                    </View>
+                    <Switch
+                      value={editWomenOnlyMode}
+                      onValueChange={setEditWomenOnlyMode}
+                      trackColor={{ false: '#C8C2BB', true: colors.accent }}
+                      thumbColor="#FFFFFF"
+                      disabled={editSaving}
+                    />
+                  </View>
+                )}
+
+                {editError ? <Text style={styles.editError}>{editError}</Text> : null}
+
+                <TouchableOpacity
+                  style={[styles.saveBtn, editSaving && styles.saveBtnDisabled]}
+                  onPress={handleUpdateStatus}
+                  disabled={editSaving}
+                  activeOpacity={0.85}
+                >
+                  {editSaving
+                    ? <ActivityIndicator color={colors.textPrimary} />
+                    : <Text style={styles.saveBtnText}>Update Status</Text>
+                  }
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setShowEditModal(false)}
+                  activeOpacity={0.7}
+                  style={styles.cancelBtn}
+                  disabled={editSaving}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <FlatList
         data={visibleCheckins}
         keyExtractor={(item) => item.id}
@@ -254,10 +455,7 @@ export default function LiveListScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => router.push('/')}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity onPress={openEditModal} activeOpacity={0.7}>
               <Text style={styles.headerName}>{myName ?? 'You'}</Text>
               {myVibeDisplay ? (
                 <View style={styles.headerVibeRow}>
@@ -282,7 +480,6 @@ export default function LiveListScreen() {
         }
         renderItem={({ item }) => {
           const time = relativeTime(item.checked_in_at)
-
           const avatarInfo = item.user_id ? avatarMap[item.user_id] : undefined
 
           return (
@@ -437,4 +634,90 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   opennessChipText: { fontSize: 12, color: '#2B6B42', fontWeight: '500' },
+
+  // Modal
+  modalOuter: { flex: 1 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    maxHeight: '85%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 20,
+  },
+  modalSectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  chip: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  chipSelected: { backgroundColor: colors.accent },
+  chipText: { fontSize: 14, color: colors.textSecondary },
+  chipTextSelected: { color: colors.textPrimary, fontWeight: '600' },
+  customInput: {
+    backgroundColor: colors.background,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  charCount: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.background,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  toggleLabel: { fontSize: 14, color: colors.textPrimary },
+  toggleHint:  { fontSize: 11, color: colors.textSecondary },
+  editError: {
+    fontSize: 14,
+    color: '#EF4444',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  saveBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  saveBtnDisabled: { opacity: 0.4 },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  cancelBtn: { alignItems: 'center', marginTop: 14, paddingVertical: 4 },
+  cancelBtnText: { fontSize: 14, color: colors.textSecondary },
 })

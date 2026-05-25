@@ -305,16 +305,18 @@ export default function YourGymsScreen() {
       return
     }
 
-    // Update user_gyms stats
-    const isFirstCheckin = gym.last_checkin_at === null
-    await supabase
-      .from('user_gyms')
-      .update({
-        last_checkin_at:  now,
-        first_checkin_at: isFirstCheckin ? now : undefined,
-        visit_count:      gym.visit_count + 1,
-      })
-      .eq('id', gym.id)
+    // Only count a new visit on INSERT, not when updating an existing check-in
+    if (!existing) {
+      const isFirstCheckin = gym.last_checkin_at === null
+      await supabase
+        .from('user_gyms')
+        .update({
+          last_checkin_at:  now,
+          first_checkin_at: isFirstCheckin ? now : undefined,
+          visit_count:      gym.visit_count + 1,
+        })
+        .eq('id', gym.id)
+    }
 
     setLoading(false)
     router.replace('/live')
