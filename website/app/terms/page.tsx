@@ -33,7 +33,7 @@ export default function TermsPage() {
               <div>
                 <h2 className="font-medium text-ink mb-3">Who can use Spottr</h2>
                 <p>
-                  You must be at least 13 years old to use Spottr. By using the app, you confirm that you meet this requirement.
+                  You must be at least 18 years old to use Spottr. Spottr is a real-world social product — people meet in person at gyms. We don&rsquo;t allow minors on the platform, including with parental consent. By creating an account, you confirm you are 18 or older.
                 </p>
               </div>
 
@@ -78,6 +78,13 @@ export default function TermsPage() {
               </div>
 
               <div>
+                <h2 className="font-medium text-ink mb-3">Real-world meetings</h2>
+                <p>
+                  Spottr helps you signal openness inside a gym. Any in-person interaction is between you and the other person. We&rsquo;re not responsible for the conduct of users in the physical world. Use your judgment, stay in public spaces, and trust your instincts.
+                </p>
+              </div>
+
+              <div>
                 <h2 className="font-medium text-ink mb-3">Limitation of liability</h2>
                 <p>
                   To the extent permitted by law, Spottr is not liable for indirect, incidental, or consequential damages arising from your use of the app.
@@ -85,9 +92,23 @@ export default function TermsPage() {
               </div>
 
               <div>
+                <h2 className="font-medium text-ink mb-3">Indemnification</h2>
+                <p>
+                  You agree to indemnify Spottr against claims arising from your conduct on the platform, including violations of these terms or harm caused to other users.
+                </p>
+              </div>
+
+              <div>
                 <h2 className="font-medium text-ink mb-3">Governing law</h2>
                 <p>
                   These terms are governed by the laws of the Philippines.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-medium text-ink mb-3">Changes to these terms</h2>
+                <p>
+                  We may update these terms. For material changes, we&rsquo;ll notify you by email or in-app notice at least 14 days before they take effect. Continued use after that date means you accept the new terms.
                 </p>
               </div>
 
