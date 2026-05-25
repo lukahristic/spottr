@@ -23,6 +23,21 @@ const STYLES: { key: AvatarStyle; label: string; premium?: boolean }[] = [
   { key: 'personas',          label: 'Persona',  premium: true },
 ]
 
+const EXPERIENCE_LEVELS = [
+  'New to this',
+  'Getting the hang of it',
+  'Pretty consistent',
+  'Been at it for years',
+]
+
+const FITNESS_GOALS = [
+  'Build strength',
+  'Cardio & endurance',
+  'Lose weight',
+  'Stay active',
+  'Train for a sport',
+]
+
 const GRID_COUNT = 9
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 // 24px padding each side, 8px gap × 2 between 3 columns
@@ -63,6 +78,9 @@ export default function EditProfileScreen() {
   const [showExperienceLevel, setShowExperienceLevel]       = useState(true)
   const [showFitnessGoal, setShowFitnessGoal]               = useState(true)
 
+  const [experienceLevel, setExperienceLevel] = useState<string | null>(null)
+  const [fitnessGoal, setFitnessGoal]         = useState<string | null>(null)
+
   useEffect(() => {
     async function boot() {
       const [{ data: { user } }] = await Promise.all([supabase.auth.getUser()])
@@ -75,7 +93,7 @@ export default function EditProfileScreen() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal')
+        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -89,6 +107,9 @@ export default function EditProfileScreen() {
       setShowCurrentGym(profile?.show_current_gym ?? false)
       setShowExperienceLevel(profile?.show_experience_level ?? true)
       setShowFitnessGoal(profile?.show_fitness_goal ?? true)
+
+      setExperienceLevel(profile?.experience_level ?? null)
+      setFitnessGoal(profile?.fitness_goal ?? null)
 
       setLoading(false)
     }
@@ -151,10 +172,12 @@ export default function EditProfileScreen() {
       supabase
         .from('profiles')
         .update({
-          name:         trimmed,
-          bio:          bio.trim() || null,
-          avatar_seed:  selectedSeed,
-          avatar_style: avatarStyle,
+          name:             trimmed,
+          bio:              bio.trim() || null,
+          avatar_seed:      selectedSeed,
+          avatar_style:     avatarStyle,
+          experience_level: experienceLevel,
+          fitness_goal:     fitnessGoal,
         })
         .eq('id', userId),
     ])
@@ -304,6 +327,40 @@ export default function EditProfileScreen() {
           blurOnSubmit
         />
         <Text style={styles.charCount}>{bio.length}/100</Text>
+
+        {/* Experience level */}
+        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Experience level</Text>
+        <View style={styles.chipRow}>
+          {EXPERIENCE_LEVELS.map((level) => (
+            <TouchableOpacity
+              key={level}
+              style={[styles.chip, experienceLevel === level && styles.chipSelected]}
+              onPress={() => setExperienceLevel(experienceLevel === level ? null : level)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, experienceLevel === level && styles.chipTextSelected]}>
+                {level}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Fitness goal */}
+        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Fitness goal</Text>
+        <View style={styles.chipRow}>
+          {FITNESS_GOALS.map((goal) => (
+            <TouchableOpacity
+              key={goal}
+              style={[styles.chip, fitnessGoal === goal && styles.chipSelected]}
+              onPress={() => setFitnessGoal(fitnessGoal === goal ? null : goal)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, fitnessGoal === goal && styles.chipTextSelected]}>
+                {goal}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={styles.divider} />
 
@@ -624,6 +681,34 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     textAlign: 'center',
+  },
+
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  chip: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  chipSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  chipText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  chipTextSelected: {
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
 
   privacyRow: {

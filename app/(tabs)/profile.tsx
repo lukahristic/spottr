@@ -25,6 +25,18 @@ export default function ProfileScreen() {
   const [openToChat, setOpenToChat]       = useState(false)
   const [womenVerified, setWomenVerified]         = useState(false)
   const [verificationRequested, setVerificationRequested] = useState(false)
+
+  const [showGymsVisited, setShowGymsVisited]               = useState(false)
+  const [showConnectionsStarted, setShowConnectionsStarted] = useState(false)
+  const [showCurrentGym, setShowCurrentGym]                 = useState(false)
+  const [showExperienceLevel, setShowExperienceLevel]       = useState(false)
+  const [showFitnessGoal, setShowFitnessGoal]               = useState(false)
+
+  const [gymsVisited, setGymsVisited]               = useState(0)
+  const [connectionsStarted, setConnectionsStarted] = useState(0)
+  const [currentGym, setCurrentGym]                 = useState<string | null>(null)
+  const [experienceLevel, setExperienceLevel]       = useState<string | null>(null)
+  const [fitnessGoal, setFitnessGoal]               = useState<string | null>(null)
   const [requestingVerification, setRequestingVerification] = useState(false)
   const [cancellingVerification, setCancellingVerification] = useState(false)
   const [checkingOut, setCheckingOut]     = useState(false)
@@ -39,18 +51,31 @@ export default function ProfileScreen() {
         setName(user.user_metadata?.name ?? '—')
         setUserId(user.id)
 
-        const [{ data: profile }, { data: checkin }] = await Promise.all([
+        const [
+          { data: profile },
+          { data: checkin },
+          { count: gymsCount },
+          { count: connsCount },
+        ] = await Promise.all([
           supabase
             .from('profiles')
-            .select('bio, avatar_seed, avatar_style, women_verified, verification_requested_at')
+            .select('bio, avatar_seed, avatar_style, women_verified, verification_requested_at, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal')
             .eq('id', user.id)
             .maybeSingle(),
           supabase
             .from('checkins')
-            .select('id, vibe, custom_vibe, open_to_chat')
+            .select('id, vibe, custom_vibe, open_to_chat, gyms(name)')
             .eq('user_id', user.id)
             .eq('is_active', true)
             .maybeSingle(),
+          supabase
+            .from('user_gyms')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          supabase
+            .from('threads')
+            .select('*', { count: 'exact', head: true })
+            .eq('initiated_by', user.id),
         ])
 
         setBio(profile?.bio ?? null)
@@ -59,10 +84,23 @@ export default function ProfileScreen() {
         setWomenVerified(profile?.women_verified ?? false)
         setVerificationRequested(!!profile?.verification_requested_at)
 
-        setActiveCheckinId(checkin?.id ?? null)
-        setCurrentVibe(checkin?.vibe ?? null)
-        setCurrentCustomVibe(checkin?.custom_vibe ?? null)
-        setOpenToChat(checkin?.open_to_chat ?? false)
+        setShowGymsVisited(profile?.show_gyms_visited ?? false)
+        setShowConnectionsStarted(profile?.show_connections_started ?? false)
+        setShowCurrentGym(profile?.show_current_gym ?? false)
+        setShowExperienceLevel(profile?.show_experience_level ?? false)
+        setShowFitnessGoal(profile?.show_fitness_goal ?? false)
+
+        setGymsVisited(gymsCount ?? 0)
+        setConnectionsStarted(connsCount ?? 0)
+        setExperienceLevel(profile?.experience_level ?? null)
+        setFitnessGoal(profile?.fitness_goal ?? null)
+
+        const checkinTyped = checkin as { id: string; vibe: string; custom_vibe: string | null; open_to_chat: boolean; gyms: { name: string } | null } | null
+        setActiveCheckinId(checkinTyped?.id ?? null)
+        setCurrentVibe(checkinTyped?.vibe ?? null)
+        setCurrentCustomVibe(checkinTyped?.custom_vibe ?? null)
+        setOpenToChat(checkinTyped?.open_to_chat ?? false)
+        setCurrentGym(checkinTyped?.gyms?.name ?? null)
       }
 
       refresh()
@@ -152,6 +190,31 @@ export default function ProfileScreen() {
             )}
           </View>
         ) : null}
+
+        {(() => {
+          const stats: { label: string; value: string }[] = []
+          if (showCurrentGym && currentGym)
+            stats.push({ label: 'At', value: currentGym })
+          if (showGymsVisited && gymsVisited > 0)
+            stats.push({ label: gymsVisited === 1 ? 'Gym' : 'Gyms', value: String(gymsVisited) })
+          if (showConnectionsStarted && connectionsStarted > 0)
+            stats.push({ label: connectionsStarted === 1 ? 'Connection' : 'Connections', value: String(connectionsStarted) })
+          if (showExperienceLevel && experienceLevel)
+            stats.push({ label: 'Level', value: experienceLevel })
+          if (showFitnessGoal && fitnessGoal)
+            stats.push({ label: 'Goal', value: fitnessGoal })
+          if (stats.length === 0) return null
+          return (
+            <View style={styles.statsCard}>
+              {stats.map((s, i) => (
+                <View key={s.label} style={[styles.statRow, i < stats.length - 1 && styles.statRowBorder]}>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                  <Text style={styles.statValue}>{s.value}</Text>
+                </View>
+              ))}
+            </View>
+          )
+        })()}
 
         <View style={styles.divider} />
 
@@ -293,6 +356,34 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   opennessChipText: { fontSize: 13, color: '#2B6B42', fontWeight: '500' },
+
+  statsCard: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  statRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.background,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  statValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
 
   divider: {
     alignSelf: 'stretch',
