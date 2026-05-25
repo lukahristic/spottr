@@ -126,9 +126,9 @@ export default function SafetyPage() {
                 You can block or report from any conversation — one tap. Once blocked, that person can&rsquo;t contact you again. We review reports we receive and aim to respond within 48 hours.
               </p>
               <p className="mt-4 text-mute leading-relaxed">
-                If you ever feel unsafe, email us directly at{" "}
-                <a href="mailto:hello@spottr.app" className="text-ink underline underline-offset-2">
-                  hello@spottr.app
+                If you ever feel unsafe, email our safety team directly at{" "}
+                <a href="mailto:safety@spottr.app" className="text-ink underline underline-offset-2">
+                  safety@spottr.app
                 </a>
                 . We&rsquo;ll respond.
               </p>
