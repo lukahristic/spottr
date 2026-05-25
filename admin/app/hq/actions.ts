@@ -5,7 +5,12 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-export async function updateGymSettings(formData: FormData) {
+type SettingsState = { success?: boolean; error?: string } | null
+
+export async function updateGymSettings(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
@@ -21,12 +26,15 @@ export async function updateGymSettings(formData: FormData) {
   const checkinRadius  = parseInt(radiusRaw) || 100
   const gymCode        = gymCodeRaw || null
 
-  await supabase
+  const { error } = await supabase
     .from('gyms')
     .update({ latitude, longitude, checkin_radius_m: checkinRadius, gym_code: gymCode })
     .eq('id', gymId)
 
+  if (error) return { error: error.message }
+
   revalidatePath('/hq/settings')
+  return { success: true }
 }
 
 export async function approveVerification(formData: FormData) {

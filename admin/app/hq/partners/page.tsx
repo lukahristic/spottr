@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { removePartner } from '../actions'
 import { InviteForm } from './InviteForm'
+import SubmitButton from '@/components/SubmitButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,9 +86,7 @@ export default async function PartnersPage() {
                       <form action={removePartner}>
                         <input type="hidden" name="admin_id" value={a.admin_id} />
                         <input type="hidden" name="user_id"  value={a.user_id} />
-                        <button type="submit" className="text-[#f87171] text-xs font-semibold hover:text-red-300 transition-colors">
-                          Revoke
-                        </button>
+                        <SubmitButton label="Revoke" pendingLabel="Revoking…" variant="danger" />
                       </form>
                     </td>
                   </tr>
@@ -132,9 +131,7 @@ export default async function PartnersPage() {
                       <form action={removePartner}>
                         <input type="hidden" name="admin_id" value={a.admin_id} />
                         <input type="hidden" name="user_id"  value={a.user_id} />
-                        <button type="submit" className="text-[#f87171] text-xs font-semibold hover:text-red-300 transition-colors">
-                          Remove
-                        </button>
+                        <SubmitButton label="Remove" pendingLabel="Removing…" variant="danger" />
                       </form>
                     </td>
                   </tr>

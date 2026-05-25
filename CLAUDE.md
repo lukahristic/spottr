@@ -223,3 +223,35 @@ Use these automatically when relevant:
 ## Deep Link Format
 
 spottr://gym/[slug]
+
+---
+
+## Admin Website — Action Button Pattern
+
+Every submit button and action form in the admin website must follow this pattern:
+
+### Double-click prevention
+Always use `SubmitButton` from `admin/components/SubmitButton.tsx` instead of a raw `<button type="submit">`. It uses `useFormStatus` to auto-disable while pending and shows a loading label.
+
+```tsx
+<SubmitButton label="Save settings" pendingLabel="Saving…" />
+// variants: 'primary' (default, gold full-width), 'danger' (red text), 'ghost' (green pill)
+```
+
+### Response messages (success / error)
+For any form that saves or mutates data:
+- The server action must return `{ success?: boolean; error?: string }` (not `void`)
+- The form must be a client component using `useActionState` to read and display the result
+- Show success in green (`text-green-400 bg-green-900/20`) and errors in red (`text-red-400 bg-red-900/20`)
+
+### Pattern for "Save" forms (settings, gym details, etc.)
+1. Server action: `async function myAction(_prev: State, fd: FormData): Promise<State>`
+2. Client form component: `useActionState(myAction, null)` + `<form action={action}>`
+3. Show `state?.success` and `state?.error` inline above the submit button
+4. Page stays a server component that fetches data and passes it as props to the client form
+
+### Pattern for quick row actions (approve, remove, revoke)
+Use `SubmitButton` inside the existing server-component form — no `useActionState` needed. The page revalidates and the row disappears, which is sufficient feedback.
+
+### File size limit
+`admin/next.config.ts` sets `serverActions.bodySizeLimit: '5mb'`. Do not lower this — file uploads need headroom.

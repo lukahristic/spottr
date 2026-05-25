@@ -31,7 +31,12 @@ function parseHours(formData: FormData): Hours {
   return out
 }
 
-export async function updateMyGym(formData: FormData) {
+type GymState = { success?: boolean; error?: string } | null
+
+export async function updateMyGym(
+  _prev: GymState,
+  formData: FormData,
+): Promise<GymState> {
   const supabase = await createClient()
   const gymId = await resolveMyGymId()
   if (!gymId) redirect('/auth/redirect')
@@ -50,7 +55,7 @@ export async function updateMyGym(formData: FormData) {
   const checkinRadius  = parseInt(radiusRaw) || 100
   const gymCode        = gymCodeRaw || null
 
-  await supabase
+  const { error } = await supabase
     .from('gyms')
     .update({
       name,
@@ -65,7 +70,10 @@ export async function updateMyGym(formData: FormData) {
     })
     .eq('id', gymId)
 
+  if (error) return { error: error.message }
+
   revalidatePath('/partner/gym')
+  return { success: true }
 }
 
 export async function uploadLogo(

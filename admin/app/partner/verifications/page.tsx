@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { approveVerification } from '../actions'
+import SubmitButton from '@/components/SubmitButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,12 +73,7 @@ export default async function PartnerVerificationsPage() {
                 </div>
                 <form action={approveVerification}>
                   <input type="hidden" name="user_id" value={p.id} />
-                  <button
-                    type="submit"
-                    className="bg-[#1a3d2b] text-[#4ade80] text-xs font-semibold rounded-lg px-3 py-1.5 hover:bg-[#2B6B42] transition-colors"
-                  >
-                    Approve
-                  </button>
+                  <SubmitButton label="Approve" pendingLabel="Approving…" variant="ghost" />
                 </form>
               </div>
             ))}
