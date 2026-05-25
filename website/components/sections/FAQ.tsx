@@ -51,7 +51,7 @@ const faqs = [
   },
   {
     q: "What if someone makes me uncomfortable?",
-    a: "You can block and report from any conversation. Once blocked, they can't contact you again. We take every report seriously.",
+    a: "You can block and report from any conversation. Once blocked, they can't contact you again. We review every report we receive and aim to respond within 48 hours.",
   },
   {
     q: "Which gyms are supported?",

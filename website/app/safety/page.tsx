@@ -46,7 +46,7 @@ const limits = [
   },
   {
     title: "No second chances after a block.",
-    body: "Once someone is blocked, they can't reach you again. Every block and report is logged. We review them.",
+    body: "Once someone is blocked, they can't reach you again. We log every block and report, and review them on a rolling basis.",
   },
 ];
 
@@ -123,7 +123,7 @@ export default function SafetyPage() {
                 If something goes wrong.
               </h2>
               <p className="mt-6 text-mute leading-relaxed">
-                You can block or report from any conversation — one tap. Once blocked, that person can&rsquo;t contact you again. Every report is reviewed manually.
+                You can block or report from any conversation — one tap. Once blocked, that person can&rsquo;t contact you again. We review reports we receive and aim to respond within 48 hours.
               </p>
               <p className="mt-4 text-mute leading-relaxed">
                 If you ever feel unsafe, email us directly at{" "}
