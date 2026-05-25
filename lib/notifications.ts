@@ -1,7 +1,7 @@
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
-import { Platform } from 'react-native'
+import { Alert, Platform } from 'react-native'
 import { supabase } from './supabase'
 
 Notifications.setNotificationHandler({
@@ -13,6 +13,34 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 })
+
+/*
+ * Show a friendly explanation before firing the OS push permission
+ * prompt for the first time.
+ *
+ * iOS only gives you ONE shot at the system prompt for the lifetime
+ * of the install — if a user dismisses it, they have to dig into
+ * Settings to re-enable. So we explain why we're asking first and
+ * only fire the OS prompt when the user opts in.
+ *
+ * Returns the permission status the user ended up in.
+ */
+async function requestWithPrimer(): Promise<Notifications.PermissionStatus> {
+  const proceed = await new Promise<boolean>((resolve) => {
+    Alert.alert(
+      'Stay in the loop',
+      "We'll let you know when someone replies to your intro, or when a friend checks in at your gym. You can turn this off anytime in your device settings.",
+      [
+        { text: 'Not now',  style: 'cancel',     onPress: () => resolve(false) },
+        { text: 'Continue', style: 'default',    onPress: () => resolve(true)  },
+      ],
+      { cancelable: false }
+    )
+  })
+  if (!proceed) return 'undetermined' as Notifications.PermissionStatus
+  const { status } = await Notifications.requestPermissionsAsync()
+  return status
+}
 
 export async function registerForPushNotificationsAsync(): Promise<void> {
   if (!Device.isDevice) return
@@ -28,9 +56,13 @@ export async function registerForPushNotificationsAsync(): Promise<void> {
   const { status: existing } = await Notifications.getPermissionsAsync()
   let finalStatus = existing
 
-  if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync()
-    finalStatus = status
+  if (existing === 'undetermined') {
+    // First-time ask: show our primer before the OS prompt fires.
+    finalStatus = await requestWithPrimer()
+  } else if (existing !== 'granted') {
+    // Already denied — don't keep nagging. The user can re-enable
+    // from Settings; the next launch will pick that up automatically.
+    return
   }
 
   if (finalStatus !== 'granted') return
