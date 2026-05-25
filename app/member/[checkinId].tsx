@@ -49,15 +49,18 @@ export default function MemberScreen() {
   const [sending, setSending]               = useState(false)
   const [error, setError]                   = useState<string | null>(null)
 
-  const [memberBio, setMemberBio]             = useState<string | null>(null)
+  const [memberBio, setMemberBio]               = useState<string | null>(null)
   const [memberAvatarSeed, setMemberAvatarSeed] = useState<string | null>(null)
   const [memberAvatarStyle, setMemberAvatarStyle] = useState<AvatarStyle>('thumbs')
+  const [memberExperienceLevel, setMemberExperienceLevel] = useState<string | null>(null)
+  const [memberFitnessGoal, setMemberFitnessGoal]         = useState<string | null>(null)
+  const [memberGymsVisited, setMemberGymsVisited]         = useState(0)
+  const [memberConnections, setMemberConnections]         = useState(0)
   const [privacy, setPrivacy] = useState({
-    show_current_gym:         true,
-    show_experience_level:    true,
-    show_fitness_goal:        true,
-    show_gyms_visited:        true,
-    show_connections_started: true,
+    show_experience_level:    false,
+    show_fitness_goal:        false,
+    show_gyms_visited:        false,
+    show_connections_started: false,
   })
 
   const [isBlocked, setIsBlocked]           = useState(false)
@@ -80,21 +83,39 @@ export default function MemberScreen() {
       setCurrentUser(user)
 
       if (checkinData?.user_id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('bio, avatar_seed, avatar_style, show_current_gym, show_experience_level, show_fitness_goal, show_gyms_visited, show_connections_started')
-          .eq('id', checkinData.user_id)
-          .maybeSingle()
+        const [
+          { data: profile },
+          { count: gymsCount },
+          { count: connsCount },
+        ] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('bio, avatar_seed, avatar_style, show_experience_level, show_fitness_goal, show_gyms_visited, show_connections_started, experience_level, fitness_goal')
+            .eq('id', checkinData.user_id)
+            .maybeSingle(),
+          supabase
+            .from('user_gyms')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', checkinData.user_id),
+          supabase
+            .from('threads')
+            .select('*', { count: 'exact', head: true })
+            .eq('initiated_by', checkinData.user_id),
+        ])
+
         setMemberBio(profile?.bio ?? null)
         setMemberAvatarSeed(profile?.avatar_seed ?? null)
         setMemberAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
+        setMemberExperienceLevel(profile?.experience_level ?? null)
+        setMemberFitnessGoal(profile?.fitness_goal ?? null)
+        setMemberGymsVisited(gymsCount ?? 0)
+        setMemberConnections(connsCount ?? 0)
         if (profile) {
           setPrivacy({
-            show_current_gym:         profile.show_current_gym         ?? true,
-            show_experience_level:    profile.show_experience_level    ?? true,
-            show_fitness_goal:        profile.show_fitness_goal        ?? true,
-            show_gyms_visited:        profile.show_gyms_visited        ?? true,
-            show_connections_started: profile.show_connections_started ?? true,
+            show_experience_level:    profile.show_experience_level    ?? false,
+            show_fitness_goal:        profile.show_fitness_goal        ?? false,
+            show_gyms_visited:        profile.show_gyms_visited        ?? false,
+            show_connections_started: profile.show_connections_started ?? false,
           })
         }
       }
@@ -327,23 +348,42 @@ export default function MemberScreen() {
             <Text style={styles.memberBio}>{memberBio}</Text>
           ) : null}
 
-          {privacy.show_current_gym && (
-            <>
-              <View style={styles.vibeBadge}>
-                <Text style={styles.vibeBadgeText}>{checkin.vibe}</Text>
+          <View style={styles.vibeBadge}>
+            <Text style={styles.vibeBadgeText}>{checkin.vibe}</Text>
+          </View>
+
+          {checkin.custom_vibe ? (
+            <Text style={styles.memberCustomVibe}>{checkin.custom_vibe}</Text>
+          ) : null}
+
+          {checkin.open_to_chat ? (
+            <View style={styles.opennessChip}>
+              <Text style={styles.opennessChipText}>Open to chat</Text>
+            </View>
+          ) : null}
+
+          {(() => {
+            const stats: { label: string; value: string }[] = []
+            if (privacy.show_gyms_visited && memberGymsVisited > 0)
+              stats.push({ label: memberGymsVisited === 1 ? 'Gym' : 'Gyms', value: String(memberGymsVisited) })
+            if (privacy.show_connections_started && memberConnections > 0)
+              stats.push({ label: memberConnections === 1 ? 'Connection' : 'Connections', value: String(memberConnections) })
+            if (privacy.show_experience_level && memberExperienceLevel)
+              stats.push({ label: 'Level', value: memberExperienceLevel })
+            if (privacy.show_fitness_goal && memberFitnessGoal)
+              stats.push({ label: 'Goal', value: memberFitnessGoal })
+            if (stats.length === 0) return null
+            return (
+              <View style={styles.statsCard}>
+                {stats.map((s, i) => (
+                  <View key={s.label} style={[styles.statRow, i < stats.length - 1 && styles.statRowBorder]}>
+                    <Text style={styles.statLabel}>{s.label}</Text>
+                    <Text style={styles.statValue}>{s.value}</Text>
+                  </View>
+                ))}
               </View>
-
-              {checkin.custom_vibe ? (
-                <Text style={styles.memberCustomVibe}>{checkin.custom_vibe}</Text>
-              ) : null}
-
-              {checkin.open_to_chat ? (
-                <View style={styles.opennessChip}>
-                  <Text style={styles.opennessChipText}>Open to chat</Text>
-                </View>
-              ) : null}
-            </>
-          )}
+            )
+          })()}
 
           <View style={styles.divider} />
 
@@ -560,6 +600,27 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 10,
   },
+
+  statsCard: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  statRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.background,
+  },
+  statLabel: { fontSize: 14, color: colors.textSecondary },
+  statValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
 
   divider:    { height: 1, backgroundColor: colors.surface, marginVertical: 28 },
   stateTitle: { fontSize: 16, fontWeight: '500', color: colors.textSecondary },
