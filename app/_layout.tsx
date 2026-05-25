@@ -50,11 +50,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function init() {
-      const [{ data: { session } }, seen] = await Promise.all([
+      const [{ data: { session }, error }, seen] = await Promise.all([
         supabase.auth.getSession(),
         AsyncStorage.getItem('spottr_onboarding_seen'),
       ])
-      setSession(session)
+      if (error) {
+        await supabase.auth.signOut()
+        setSession(null)
+      } else {
+        setSession(session)
+      }
       setOnboardingDone(seen === 'true')
       setInit(false)
     }
@@ -70,6 +75,7 @@ export default function RootLayout() {
       if (event === 'USER_UPDATED') {
         setPasswordRecovery(false)
       }
+      // TOKEN_REFRESHED failure causes a SIGNED_OUT event — session will be null
       setSession(session)
       // Only register on sign-in and initial session load.
       // TOKEN_REFRESHED fires every ~60 min and does not need a new token.
