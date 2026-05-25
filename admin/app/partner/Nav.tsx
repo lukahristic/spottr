@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const tabs = [
-  { href: '/partner',     label: 'Overview' },
-  { href: '/partner/gym', label: 'Gym'      },
-  { href: '/partner/qr',  label: 'QR code'  },
+  { href: '/partner',                  label: 'Overview'      },
+  { href: '/partner/gym',              label: 'Gym'           },
+  { href: '/partner/qr',               label: 'QR code'       },
+  { href: '/partner/verifications',    label: 'Verifications' },
+  { href: '/partner/reports',          label: 'Reports'       },
 ]
 
 export default function PartnerNav() {

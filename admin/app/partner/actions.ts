@@ -128,6 +128,33 @@ export async function generateSlug() {
   revalidatePath('/partner/qr')
 }
 
+export async function approveVerification(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/')
+
+  const gymId = await resolveMyGymId()
+  if (!gymId) redirect('/auth/redirect')
+
+  const userId = formData.get('user_id') as string
+
+  // Only approve if this user has checked into the partner's gym
+  const { count } = await supabase
+    .from('checkins')
+    .select('id', { count: 'exact', head: true })
+    .eq('gym_id', gymId)
+    .eq('user_id', userId)
+
+  if (!count) return
+
+  await supabase
+    .from('profiles')
+    .update({ women_verified: true, women_verified_at: new Date().toISOString() })
+    .eq('id', userId)
+
+  revalidatePath('/partner/verifications')
+}
+
 export async function signOutPartner() {
   const supabase = await createClient()
   await supabase.auth.signOut()

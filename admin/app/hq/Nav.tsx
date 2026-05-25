@@ -4,11 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const tabs = [
-  { href: '/hq/analytics',     label: 'Analytics'     },
-  { href: '/hq/gyms',          label: 'Gyms'          },
-  { href: '/hq/partners',      label: 'Partners'      },
-  { href: '/hq/verifications', label: 'Verifications' },
-  { href: '/hq/reports',       label: 'Reports'       },
+  { href: '/hq/analytics', label: 'Analytics' },
+  { href: '/hq/gyms',      label: 'Gyms'      },
+  { href: '/hq/partners',  label: 'Partners'  },
 ]
 
 export default function HqNav() {
