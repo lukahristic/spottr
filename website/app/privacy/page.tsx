@@ -47,13 +47,22 @@ export default function PrivacyPage() {
                     <span className="text-ink font-medium">Check-in data</span> — which gym you checked in to, and when.
                   </li>
                   <li>
+                    <span className="text-ink font-medium">Precise location</span> — when you check in, your device&rsquo;s GPS is used briefly to confirm you&rsquo;re inside the gym. This reading is processed on your device and is never sent to our servers or stored. We only keep the gym you checked into and the time.
+                  </li>
+                  <li>
                     <span className="text-ink font-medium">Status and vibe</span> — your current vibe and whether you&rsquo;re open to chat. This resets every session.
                   </li>
                   <li>
                     <span className="text-ink font-medium">Messages</span> — conversations you have with other members inside the app.
                   </li>
                   <li>
+                    <span className="text-ink font-medium">Women&rsquo;s verification</span> — if you request verification, we store only the outcome (approved or pending) and the date. We don&rsquo;t currently collect identity documents or photos for this feature. If that ever changes, this policy will be updated and you&rsquo;ll be notified.
+                  </li>
+                  <li>
                     <span className="text-ink font-medium">Device info</span> — IP address, device type, and app version. Used for security and debugging only.
+                  </li>
+                  <li>
+                    <span className="text-ink font-medium">Push notification tokens</span> — if you allow notifications, we store the device token Apple or Google issues to us so we can send you message and check-in alerts. You can revoke this anytime in your device settings.
                   </li>
                 </ul>
               </div>
@@ -62,6 +71,24 @@ export default function PrivacyPage() {
                 <h2 className="font-medium text-ink mb-3">How we use it</h2>
                 <p>
                   We use your data to run Spottr — showing you who&rsquo;s at your gym right now, letting you connect with members who are open to chat, and keeping your account secure. That&rsquo;s it. We don&rsquo;t use it for advertising. We don&rsquo;t sell it or broker it to anyone.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-medium text-ink mb-3">How long we keep it</h2>
+                <ul className="space-y-3">
+                  <li><span className="text-ink font-medium">Profile and account</span> — until you delete your account.</li>
+                  <li><span className="text-ink font-medium">Check-in records</span> — 12 months, then automatically deleted.</li>
+                  <li><span className="text-ink font-medium">Messages</span> — kept while both participants have active accounts. When either deletes, the thread is removed within 30 days.</li>
+                  <li><span className="text-ink font-medium">Reports about another user</span> — retained for 24 months to support moderation history, then deleted.</li>
+                  <li><span className="text-ink font-medium">Push tokens</span> — until you turn off notifications or uninstall the app.</li>
+                </ul>
+              </div>
+
+              <div>
+                <h2 className="font-medium text-ink mb-3">Cookies and analytics</h2>
+                <p>
+                  Our website uses basic analytics (Vercel Web Analytics) to count page visits. We don&rsquo;t use advertising cookies. The app itself doesn&rsquo;t use third-party analytics SDKs.
                 </p>
               </div>
 
