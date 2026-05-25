@@ -6,12 +6,18 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native'
+import Constants from 'expo-constants'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
+import { ChevronRight } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { Avatar, AvatarStyle } from '../../components/Avatar'
 import { colors } from '../../.claude/tokens/colors'
+
+const LEGAL_BASE = 'https://spottr.app'
+const APP_VERSION = Constants.expoConfig?.version ?? '—'
 
 export default function ProfileScreen() {
   const [name, setName]                   = useState<string>('—')
@@ -301,10 +307,40 @@ export default function ProfileScreen() {
               <Text style={styles.deleteAccountText}>Delete account</Text>
             </TouchableOpacity>
           </View>
+
+          {/*
+           * App-store reviewers look for in-app links to Privacy, Terms,
+           * and a behaviour policy. We open them in the system browser
+           * via Linking; no in-app webview needed.
+           */}
+          <View style={styles.aboutSection}>
+            <Text style={styles.aboutHeading}>About</Text>
+            <AboutRow label="Privacy Policy"        url={`${LEGAL_BASE}/privacy`} />
+            <AboutRow label="Terms of Use"          url={`${LEGAL_BASE}/terms`} />
+            <AboutRow label="Community Guidelines"  url={`${LEGAL_BASE}/community`} />
+            <AboutRow label="Safety"                url={`${LEGAL_BASE}/safety`} />
+            <View style={styles.aboutVersionRow}>
+              <Text style={styles.aboutRowLabel}>Version</Text>
+              <Text style={styles.aboutVersionText}>{APP_VERSION}</Text>
+            </View>
+          </View>
         </View>
 
       </ScrollView>
     </SafeAreaView>
+  )
+}
+
+function AboutRow({ label, url }: { label: string; url: string }) {
+  return (
+    <TouchableOpacity
+      style={styles.aboutRow}
+      onPress={() => Linking.openURL(url)}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.aboutRowLabel}>{label}</Text>
+      <ChevronRight size={18} color={colors.textSecondary} />
+    </TouchableOpacity>
   )
 }
 
@@ -461,6 +497,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     textDecorationLine: 'underline',
+  },
+
+  aboutSection: {
+    marginTop: 32,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  aboutHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  aboutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surface,
+  },
+  aboutVersionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  aboutRowLabel: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  aboutVersionText: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 
   accountSection: {
