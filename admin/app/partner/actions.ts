@@ -68,16 +68,20 @@ export async function updateMyGym(formData: FormData) {
   revalidatePath('/partner/gym')
 }
 
-export async function uploadLogo(formData: FormData) {
+export async function uploadLogo(
+  formData: FormData,
+): Promise<{ error?: string }> {
   const supabase = await createClient()
   const gymId = await resolveMyGymId()
   if (!gymId) redirect('/auth/redirect')
 
   const file = formData.get('logo') as File | null
-  if (!file || file.size === 0) return
+  if (!file || file.size === 0) {
+    return { error: 'No file received. The image may be too large (max 5 MB).' }
+  }
 
-  const ext  = (file.name.split('.').pop() || 'png').toLowerCase()
-  const path = `${gymId}/logo.${ext}`
+  const ext      = (file.name.split('.').pop() || 'png').toLowerCase()
+  const path     = `${gymId}/logo.${ext}`
   const arrayBuf = await file.arrayBuffer()
 
   const { error: uploadErr } = await supabase
@@ -89,17 +93,26 @@ export async function uploadLogo(formData: FormData) {
     })
 
   if (uploadErr) {
-    console.error('logo upload failed', uploadErr)
-    return
+    console.error('logo upload failed:', uploadErr.message)
+    return { error: uploadErr.message }
   }
 
   const { data: pub } = supabase.storage.from('gym-logos').getPublicUrl(path)
-  const publicUrl = `${pub.publicUrl}?v=${Date.now()}` // cache-bust on re-upload
+  const publicUrl = `${pub.publicUrl}?v=${Date.now()}`
 
-  await supabase.from('gyms').update({ logo_url: publicUrl }).eq('id', gymId)
+  const { error: dbErr } = await supabase
+    .from('gyms')
+    .update({ logo_url: publicUrl })
+    .eq('id', gymId)
+
+  if (dbErr) {
+    console.error('logo db update failed:', dbErr.message)
+    return { error: dbErr.message }
+  }
 
   revalidatePath('/partner/gym')
   revalidatePath('/partner')
+  return {}
 }
 
 export async function generateSlug() {
