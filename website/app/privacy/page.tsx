@@ -88,7 +88,7 @@ export default function PrivacyPage() {
               <div>
                 <h2 className="font-medium text-ink mb-3">Cookies and analytics</h2>
                 <p>
-                  Our website uses basic analytics (Vercel Web Analytics) to count page visits. We don&rsquo;t use advertising cookies. The app itself doesn&rsquo;t use third-party analytics SDKs.
+                  Our website doesn&rsquo;t currently run any analytics or tracking scripts. We don&rsquo;t use advertising cookies. The app itself doesn&rsquo;t use third-party analytics SDKs. If we ever add analytics, this policy will be updated first.
                 </p>
               </div>
 
