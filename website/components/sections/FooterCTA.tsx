@@ -89,6 +89,7 @@ export default function FooterCTA() {
               Contact
             </a>
             <a href="/safety" className="hover:text-ink transition-colors">Safety</a>
+            <a href="/community" className="hover:text-ink transition-colors">Community</a>
             <a href="/privacy" className="hover:text-ink transition-colors">Privacy</a>
             <a href="/terms" className="hover:text-ink transition-colors">Terms</a>
             <span>© 2026 Spottr</span>
