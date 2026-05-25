@@ -151,6 +151,7 @@ export default function EditProfileScreen() {
       supabase
         .from('profiles')
         .update({
+          name:         trimmed,
           bio:          bio.trim() || null,
           avatar_seed:  selectedSeed,
           avatar_style: avatarStyle,
