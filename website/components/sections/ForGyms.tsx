@@ -18,12 +18,20 @@ export default function ForGyms() {
             </p>
           </div>
 
-          <a
-            href="mailto:hello@spottr.app"
-            className="flex-shrink-0 px-7 py-3 rounded-full border-2 border-ink text-ink font-medium text-sm hover:bg-ink hover:text-cream transition-colors whitespace-nowrap"
-          >
-            Get in touch
-          </a>
+          <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+            <a
+              href="/gyms"
+              className="px-7 py-3 rounded-full bg-gold text-ink font-medium text-sm hover:opacity-90 transition-opacity whitespace-nowrap text-center"
+            >
+              Learn more
+            </a>
+            <a
+              href="mailto:hello@spottr.app"
+              className="px-7 py-3 rounded-full border-2 border-ink text-ink font-medium text-sm hover:bg-ink hover:text-cream transition-colors whitespace-nowrap text-center"
+            >
+              Get in touch
+            </a>
+          </div>
 
         </div>
       </div>

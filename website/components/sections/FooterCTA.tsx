@@ -88,8 +88,8 @@ export default function FooterCTA() {
             >
               Contact
             </a>
-            <span>Privacy</span>
-            <span>Terms</span>
+            <a href="/privacy" className="hover:text-ink transition-colors">Privacy</a>
+            <a href="/terms" className="hover:text-ink transition-colors">Terms</a>
             <span>© 2025 Spottr</span>
           </nav>
         </div>
