@@ -24,6 +24,20 @@ export default async function PartnerLayout({ children }: { children: React.Reac
     redirect('/auth/redirect')
   }
 
+  // Gate the entire partner dashboard on Gym Partner Terms acceptance.
+  // Anyone who hasn't accepted yet gets bounced to the interstitial.
+  // get_my_role doesn't return the acceptance column, so query it
+  // directly. Cheap (single-row primary-key lookup).
+  const { data: accept } = await supabase
+    .from('gym_admins')
+    .select('partner_terms_accepted_at')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!accept?.partner_terms_accepted_at) {
+    redirect('/accept-terms')
+  }
+
   const { data: gym } = await supabase
     .from('gyms')
     .select('id, name, location, logo_url')
