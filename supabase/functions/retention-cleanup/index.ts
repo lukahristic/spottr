@@ -14,13 +14,26 @@
 //                   the safety net for out-of-band deletions)
 //
 // Auth: verify_jwt is disabled at the gateway because pg_cron calls
-// this with the service role key as a Bearer token, not a user JWT.
-// We verify the Bearer token matches the service role key inside.
+// this with a custom shared secret, not a user JWT. The shared
+// secret lives in two places:
+//
+//   - the function's RETENTION_CRON_SECRET env var (set via the
+//     Edge Functions secrets UI)
+//   - Supabase Vault under the name "retention_cron_secret"
+//
+// The cron body pulls the value from vault and passes it as a
+// Bearer token. The function compares to the env var.
+//
+// Using a dedicated secret (rather than SUPABASE_SERVICE_ROLE_KEY)
+// decouples cron auth from Supabase's key management — there have
+// been cases where the value injected into SUPABASE_SERVICE_ROLE_KEY
+// at runtime differs from the JWT shown in the dashboard.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
 const SUPABASE_URL          = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const CRON_SECRET           = Deno.env.get('RETENTION_CRON_SECRET') ?? ''
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -31,8 +44,8 @@ function json(body: unknown, status = 200): Response {
 
 Deno.serve(async (req) => {
   const authHeader = req.headers.get('Authorization') ?? ''
-  const expected = `Bearer ${SUPABASE_SERVICE_ROLE}`
-  if (authHeader !== expected) {
+  const expected = `Bearer ${CRON_SECRET}`
+  if (!CRON_SECRET || authHeader !== expected) {
     return json({ error: 'unauthorized' }, 401)
   }
 
