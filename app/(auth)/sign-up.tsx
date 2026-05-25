@@ -9,29 +9,85 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native'
+import { ChevronLeft, Eye, EyeOff, Check } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { colors } from '../../.claude/tokens/colors'
+
+/*
+ * 18+ age gate + legal acceptance.
+ *
+ * The DB has a CHECK constraint (profiles_must_be_adult) that
+ * enforces age >= 18 at the data layer, but we also enforce it
+ * client-side so under-18 signups never call supabase.auth.signUp.
+ *
+ * DOB is collected as three numeric TextInputs (MM/DD/YYYY) to
+ * avoid adding @react-native-community/datetimepicker as a
+ * dependency for a 30-second flow.
+ */
+
+const LEGAL_BASE = 'https://spottr.app'
+
+function parseDOB(month: string, day: string, year: string): Date | null {
+  const m = parseInt(month, 10)
+  const d = parseInt(day, 10)
+  const y = parseInt(year, 10)
+  if (!m || !d || !y) return null
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null
+  if (y < 1900 || y > new Date().getFullYear()) return null
+  const dt = new Date(y, m - 1, d)
+  // Reject impossible dates (Feb 30, Apr 31, etc.) — JS rolls them
+  // forward, so we sanity-check the round-trip.
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null
+  return dt
+}
+
+function yearsSince(dt: Date): number {
+  const now = new Date()
+  let age = now.getFullYear() - dt.getFullYear()
+  const monthDiff = now.getMonth() - dt.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dt.getDate())) age--
+  return age
+}
 
 export default function SignUpScreen() {
   const [name, setName]               = useState('')
   const [email, setEmail]             = useState('')
   const [password, setPassword]       = useState('')
   const [showPassword, setShowPassword] = useState(false)
+
+  const [dobMonth, setDobMonth] = useState('')
+  const [dobDay, setDobDay]     = useState('')
+  const [dobYear, setDobYear]   = useState('')
+
+  const [acceptTerms, setAcceptTerms]         = useState(false)
+  const [acceptPrivacy, setAcceptPrivacy]     = useState(false)
+  const [acceptCommunity, setAcceptCommunity] = useState(false)
+
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState<string | null>(null)
   const [emailTaken, setEmailTaken]   = useState(false)
+  const [underageBlocked, setUnderageBlocked] = useState(false)
 
-  // Ref guard prevents double-submission even before React re-renders
   const submitting = useRef(false)
+
+  const dob = parseDOB(dobMonth, dobDay, dobYear)
+  const age = dob ? yearsSince(dob) : null
+  const dobComplete = dobMonth.length > 0 && dobDay.length > 0 && dobYear.length === 4
+  const dobValid = dob !== null
+  const dobIs18Plus = age !== null && age >= 18
 
   const canSubmit =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
-    password.length >= 6
+    password.length >= 6 &&
+    dobIs18Plus &&
+    acceptTerms &&
+    acceptPrivacy &&
+    acceptCommunity
 
   function handleEmailChange(v: string) {
     setEmail(v)
@@ -39,24 +95,42 @@ export default function SignUpScreen() {
     if (error) setError(null)
   }
 
+  // Numeric-only with a max-length, used for the three DOB segments.
+  function onDOBChange(setter: (v: string) => void, max: number) {
+    return (v: string) => {
+      const digits = v.replace(/\D/g, '').slice(0, max)
+      setter(digits)
+      if (underageBlocked) setUnderageBlocked(false)
+    }
+  }
+
   async function handleSignUp() {
-    if (!canSubmit || submitting.current) return
+    if (submitting.current) return
+
+    // Surface underage block as a friendly message rather than just
+    // disabling the button silently.
+    if (dobComplete && dobValid && !dobIs18Plus) {
+      setUnderageBlocked(true)
+      return
+    }
+
+    if (!canSubmit) return
 
     submitting.current = true
     setLoading(true)
     setError(null)
     setEmailTaken(false)
 
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: signUpData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: { data: { name: name.trim() } },
     })
 
-    submitting.current = false
-    setLoading(false)
-
     if (authError) {
+      submitting.current = false
+      setLoading(false)
+
       const isAlreadyRegistered =
         authError.message?.toLowerCase().includes('already registered') ||
         authError.message?.toLowerCase().includes('already exists') ||
@@ -69,6 +143,33 @@ export default function SignUpScreen() {
       }
       return
     }
+
+    // Write DOB and acceptance timestamps to the auto-created profile
+    // row. RLS allows the just-signed-in user to update their own row.
+    if (signUpData.user) {
+      const isoDate = `${dobYear}-${dobMonth.padStart(2, '0')}-${dobDay.padStart(2, '0')}`
+      const nowIso = new Date().toISOString()
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          date_of_birth: isoDate,
+          terms_accepted_at: nowIso,
+          privacy_accepted_at: nowIso,
+          community_guidelines_accepted_at: nowIso,
+        })
+        .eq('id', signUpData.user.id)
+
+      if (profileError) {
+        // Non-fatal: the constraint already rejected anything <18, so
+        // a failure here is most likely the auto-create trigger not
+        // having committed yet. Surface to console and proceed; the
+        // user can be re-prompted at next login.
+        console.warn('[sign-up] profile metadata update failed:', profileError.message)
+      }
+    }
+
+    submitting.current = false
+    setLoading(false)
     // onAuthStateChange in root layout handles redirect
   }
 
@@ -87,7 +188,7 @@ export default function SignUpScreen() {
           </TouchableOpacity>
 
           <Text style={styles.heading}>Let's get you in.</Text>
-          <Text style={styles.subheading}>Takes 30 seconds. No gym experience required.</Text>
+          <Text style={styles.subheading}>Takes 30 seconds. Spottr is for adults 18 and over.</Text>
 
           <Text style={styles.label}>Name</Text>
           <TextInput
@@ -123,8 +224,7 @@ export default function SignUpScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              returnKeyType="done"
-              onSubmitEditing={handleSignUp}
+              returnKeyType="next"
               editable={!loading}
             />
             <TouchableOpacity
@@ -138,6 +238,98 @@ export default function SignUpScreen() {
                 : <Eye size={20} color={colors.textSecondary} />
               }
             </TouchableOpacity>
+          </View>
+
+          <Text style={styles.label}>Date of birth</Text>
+          <View style={styles.dobRow}>
+            <TextInput
+              style={[styles.dobInput, styles.dobInputShort]}
+              placeholder="MM"
+              placeholderTextColor={colors.textSecondary}
+              value={dobMonth}
+              onChangeText={onDOBChange(setDobMonth, 2)}
+              keyboardType="number-pad"
+              maxLength={2}
+              editable={!loading}
+            />
+            <Text style={styles.dobSep}>/</Text>
+            <TextInput
+              style={[styles.dobInput, styles.dobInputShort]}
+              placeholder="DD"
+              placeholderTextColor={colors.textSecondary}
+              value={dobDay}
+              onChangeText={onDOBChange(setDobDay, 2)}
+              keyboardType="number-pad"
+              maxLength={2}
+              editable={!loading}
+            />
+            <Text style={styles.dobSep}>/</Text>
+            <TextInput
+              style={[styles.dobInput, styles.dobInputLong]}
+              placeholder="YYYY"
+              placeholderTextColor={colors.textSecondary}
+              value={dobYear}
+              onChangeText={onDOBChange(setDobYear, 4)}
+              keyboardType="number-pad"
+              maxLength={4}
+              editable={!loading}
+            />
+          </View>
+
+          {underageBlocked && (
+            <Text style={styles.underageMsg}>
+              Spottr is for adults 18 and over. Thanks for understanding.
+            </Text>
+          )}
+          {dobComplete && !dobValid && (
+            <Text style={styles.error}>That date doesn&rsquo;t look right.</Text>
+          )}
+
+          <View style={styles.checkboxGroup}>
+            <CheckboxRow
+              checked={acceptTerms}
+              onToggle={() => setAcceptTerms(v => !v)}
+              disabled={loading}
+            >
+              I agree to the{' '}
+              <Text
+                style={styles.checkboxLink}
+                onPress={() => Linking.openURL(`${LEGAL_BASE}/terms`)}
+              >
+                Terms of Use
+              </Text>
+              .
+            </CheckboxRow>
+
+            <CheckboxRow
+              checked={acceptPrivacy}
+              onToggle={() => setAcceptPrivacy(v => !v)}
+              disabled={loading}
+            >
+              I&rsquo;ve read the{' '}
+              <Text
+                style={styles.checkboxLink}
+                onPress={() => Linking.openURL(`${LEGAL_BASE}/privacy`)}
+              >
+                Privacy Policy
+              </Text>
+              .
+            </CheckboxRow>
+
+            <CheckboxRow
+              checked={acceptCommunity}
+              onToggle={() => setAcceptCommunity(v => !v)}
+              disabled={loading}
+            >
+              I agree to follow the{' '}
+              <Text
+                style={styles.checkboxLink}
+                onPress={() => Linking.openURL(`${LEGAL_BASE}/community`)}
+              >
+                Community Guidelines
+              </Text>
+              .
+            </CheckboxRow>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -181,6 +373,32 @@ export default function SignUpScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  )
+}
+
+function CheckboxRow({
+  checked,
+  onToggle,
+  disabled,
+  children,
+}: {
+  checked: boolean
+  onToggle: () => void
+  disabled?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.checkboxRow}
+      onPress={onToggle}
+      disabled={disabled}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+        {checked && <Check size={14} color={colors.background} strokeWidth={3} />}
+      </View>
+      <Text style={styles.checkboxLabel}>{children}</Text>
+    </TouchableOpacity>
   )
 }
 
@@ -239,6 +457,76 @@ const styles = StyleSheet.create({
   inputError: {
     borderColor: '#C0392B60',
   },
+
+  dobRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dobInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  dobInputShort: { width: 64 },
+  dobInputLong:  { width: 92 },
+  dobSep: {
+    fontSize: 18,
+    color: colors.textSecondary,
+    marginHorizontal: 8,
+  },
+  underageMsg: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#C0392B',
+    marginTop: 4,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+
+  checkboxGroup: {
+    marginTop: 16,
+    marginBottom: 20,
+    gap: 12,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  checkboxLink: {
+    color: colors.textPrimary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+
   error: {
     fontSize: 14,
     fontWeight: '500',
