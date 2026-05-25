@@ -23,9 +23,10 @@ export default function MinimalFooter() {
             <a href="mailto:hello@spottr.app" className="hover:text-ink transition-colors">
               Contact
             </a>
+            <a href="/safety" className="hover:text-ink transition-colors">Safety</a>
             <a href="/privacy" className="hover:text-ink transition-colors">Privacy</a>
             <a href="/terms" className="hover:text-ink transition-colors">Terms</a>
-            <span>© 2025 Spottr</span>
+            <span>© 2026 Spottr</span>
           </nav>
         </div>
       </div>
