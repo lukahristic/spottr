@@ -13,18 +13,13 @@
 //   6. profiles          (id = uid)
 //   7. auth.users        (admin.deleteUser)
 //
-// Auth model: the function reads the user's JWT from the
-// Authorization header to determine WHOSE account to delete. The
-// service-role client then performs the deletes (so we don't fight
-// RLS row by row).
+// Auth model: the gateway verifies the JWT (verify_jwt=true). The
+// function reads the user's identity from the Authorization header
+// to determine WHOSE account to delete, then uses the service-role
+// client to perform the deletes (so we don't fight RLS row by row).
 //
 // Invoke from the app:
 //   await supabase.functions.invoke('delete-account')
-//
-// Deploy:
-//   supabase functions deploy delete-account --no-verify-jwt
-// (We verify the JWT manually so we can return clean error messages
-//  to the client instead of a 401 from the gateway.)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
