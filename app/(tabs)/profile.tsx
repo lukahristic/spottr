@@ -291,6 +291,15 @@ export default function ProfileScreen() {
                 : <Text style={styles.signOutText}>Sign Out</Text>
               }
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.deleteAccountButton}
+              onPress={() => router.push('/delete-account')}
+              disabled={signingOut}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.deleteAccountText}>Delete account</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -442,6 +451,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signOutText: { fontSize: 15, fontWeight: '600', color: '#C0392B' },
+
+  deleteAccountButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
 
   accountSection: {
     gap: 10,
