@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/*
+ * Spottr design tokens
+ *
+ * In Tailwind v4, `@theme` declares custom design tokens. Tailwind auto-generates
+ * utility classes from each token:
+ *   --color-cream  → bg-cream / text-cream / border-cream
+ *   --font-serif   → font-serif
+ *
+ * Source of truth: .claude/tokens/colors.ts
+ */
+@theme {
+  /* Surfaces */
+  --color-cream: #faf8f4;   /* page background */
+  --color-surface: #f2eee7; /* cards, dividers, slightly darker than cream */
+
+  /* Text */
+  --color-ink: #2b2b2b;     /* primary text — never pure black */
+  --color-mute: #7a746d;    /* secondary text */
+
+  /* Accent */
+  --color-gold: #dfaf3a;    /* primary CTA, key emphasis */
+
+  /* Status pastels (from the app's status colors) */
+  --color-sage: #b8d8c0;    /* "Open to chat" */
+  --color-tan: #f3d7b6;     /* learning / warm */
+  --color-sky: #c9d8e8;     /* focused / cool */
+
+  /* Fonts (the CSS variables come from next/font in app/layout.tsx) */
+  --font-serif: var(--font-fraunces);
+  --font-sans: var(--font-inter);
+}
+
+/* Base resets */
+html {
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+ * Respect prefers-reduced-motion globally.
+ * Framer Motion and GSAP both also have their own guards, but this is the
+ * belt-and-suspenders fallback for CSS transitions and animations.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
