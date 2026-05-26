@@ -55,12 +55,14 @@ export default function MemberScreen() {
   const [memberExperienceLevel, setMemberExperienceLevel] = useState<string | null>(null)
   const [memberFitnessGoal, setMemberFitnessGoal]         = useState<string | null>(null)
   const [memberGymsVisited, setMemberGymsVisited]         = useState(0)
-  const [memberConnections, setMemberConnections]         = useState(0)
+  // `memberConnections` removed 2026-05-27 (roadmap 1.6). Connections-started
+  // shown on someone else's profile reads as "this person messages a lot of
+  // people" — the exact mental model we want to avoid. Stat is still tracked
+  // for the user's own profile.
   const [privacy, setPrivacy] = useState({
     show_experience_level:    false,
     show_fitness_goal:        false,
     show_gyms_visited:        false,
-    show_connections_started: false,
   })
 
   const [isBlocked, setIsBlocked]           = useState(false)
@@ -86,21 +88,16 @@ export default function MemberScreen() {
         const [
           { data: profile },
           { count: gymsCount },
-          { count: connsCount },
         ] = await Promise.all([
           supabase
             .from('profiles')
-            .select('bio, avatar_seed, avatar_style, show_experience_level, show_fitness_goal, show_gyms_visited, show_connections_started, experience_level, fitness_goal')
+            .select('bio, avatar_seed, avatar_style, show_experience_level, show_fitness_goal, show_gyms_visited, experience_level, fitness_goal')
             .eq('id', checkinData.user_id)
             .maybeSingle(),
           supabase
             .from('user_gyms')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', checkinData.user_id),
-          supabase
-            .from('threads')
-            .select('*', { count: 'exact', head: true })
-            .eq('initiated_by', checkinData.user_id),
         ])
 
         setMemberBio(profile?.bio ?? null)
@@ -109,13 +106,11 @@ export default function MemberScreen() {
         setMemberExperienceLevel(profile?.experience_level ?? null)
         setMemberFitnessGoal(profile?.fitness_goal ?? null)
         setMemberGymsVisited(gymsCount ?? 0)
-        setMemberConnections(connsCount ?? 0)
         if (profile) {
           setPrivacy({
             show_experience_level:    profile.show_experience_level    ?? false,
             show_fitness_goal:        profile.show_fitness_goal        ?? false,
             show_gyms_visited:        profile.show_gyms_visited        ?? false,
-            show_connections_started: profile.show_connections_started ?? false,
           })
         }
       }
@@ -366,8 +361,6 @@ export default function MemberScreen() {
             const stats: { label: string; value: string }[] = []
             if (privacy.show_gyms_visited && memberGymsVisited > 0)
               stats.push({ label: memberGymsVisited === 1 ? 'Gym' : 'Gyms', value: String(memberGymsVisited) })
-            if (privacy.show_connections_started && memberConnections > 0)
-              stats.push({ label: memberConnections === 1 ? 'Connection' : 'Connections', value: String(memberConnections) })
             if (privacy.show_experience_level && memberExperienceLevel)
               stats.push({ label: 'Level', value: memberExperienceLevel })
             if (privacy.show_fitness_goal && memberFitnessGoal)

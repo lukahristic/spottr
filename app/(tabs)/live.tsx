@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
 import { Pencil, Zap } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
+import { shareGymInvite } from '../../lib/sharing'
 import { Avatar, AvatarStyle } from '../../components/Avatar'
 import { colors } from '../../.claude/tokens/colors'
 
@@ -89,6 +90,10 @@ export default function LiveListScreen() {
   const [myOpenToChat, setMyOpenToChat]       = useState(false)
   const [myWomenOnlyMode, setMyWomenOnlyMode] = useState(false)
   const [womenVerified, setWomenVerified]     = useState(false)
+  // Gym name + slug — used to build the invite share message when the
+  // live list is empty. Null while checked out.
+  const [myGymName, setMyGymName]             = useState<string | null>(null)
+  const [myGymSlug, setMyGymSlug]             = useState<string | null>(null)
   const myWomenOnlyModeRef = useRef(false)
 
   // Edit modal state
@@ -125,7 +130,9 @@ export default function LiveListScreen() {
     const [{ data: myCheckin }, { data: profile }] = await Promise.all([
       supabase
         .from('checkins')
-        .select('id, gym_id, name, vibe, custom_vibe, open_to_chat, women_only_mode')
+        // Joined `gyms ( name, slug )` so we can build the invite message
+        // without a second query. Matches the pattern used in (tabs)/index.tsx.
+        .select('id, gym_id, name, vibe, custom_vibe, open_to_chat, women_only_mode, gyms ( name, slug )')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .maybeSingle(),
@@ -147,6 +154,8 @@ export default function LiveListScreen() {
       setMyCustomVibe(null)
       setMyOpenToChat(false)
       setMyWomenOnlyMode(false)
+      setMyGymName(null)
+      setMyGymSlug(null)
       myWomenOnlyModeRef.current = false
       return null
     }
@@ -161,6 +170,16 @@ export default function LiveListScreen() {
     setMyWomenOnlyMode(womenMode)
     myWomenOnlyModeRef.current = womenMode
     const gymId = myCheckin.gym_id
+
+    // Supabase returns joined to-one relationships as a single object at
+    // runtime, but its default TS types treat the field as an array. We
+    // cast through `unknown` here to match the same workaround used in
+    // (tabs)/index.tsx around line 132.
+    const gym = (myCheckin as unknown as {
+      gyms: { name: string | null; slug: string | null } | null
+    }).gyms
+    setMyGymName(gym?.name ?? null)
+    setMyGymSlug(gym?.slug ?? null)
 
     const { data, error: dbError } = await supabase
       .from('checkins')
@@ -388,7 +407,10 @@ export default function LiveListScreen() {
 
                 <Text style={[styles.modalSectionLabel, { marginTop: 16 }]}>Openness</Text>
                 <View style={styles.toggleRow}>
-                  <Text style={styles.toggleLabel}>Open to chat</Text>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.toggleLabel}>Open to chat</Text>
+                    <Text style={styles.toggleHint}>Resets every visit. Always your choice.</Text>
+                  </View>
                   <Switch
                     value={editOpenToChat}
                     onValueChange={setEditOpenToChat}
@@ -473,9 +495,30 @@ export default function LiveListScreen() {
           </View>
         }
         ListEmptyComponent={
+          /*
+           * Empty state = highest-impact copy in the product. A first-time
+           * user who lands on an empty list and sees nothing actionable
+           * concludes the app is dead. This converts the empty state into
+           * an invite action — the cheapest growth mechanic we have.
+           *
+           * The button is only shown when we have a slug to share; without
+           * one the deep link doesn't work, so we degrade to the headline
+           * + subline only.
+           */
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>You're first in.</Text>
-            <Text style={styles.emptyHint}>Others will appear as they check in.</Text>
+            <Text style={styles.emptyText}>You're the only one here right now.</Text>
+            <Text style={styles.emptyHint}>
+              Know someone who trains here? Invite them.
+            </Text>
+            {myGymSlug && myGymName ? (
+              <TouchableOpacity
+                style={styles.inviteButton}
+                onPress={() => shareGymInvite({ gymName: myGymName, gymSlug: myGymSlug })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.inviteButtonText}>Invite to {myGymName}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         }
         renderItem={({ item }) => {
@@ -586,10 +629,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 40,
+    paddingHorizontal: 24,
     gap: 8,
   },
   emptyText: { fontSize: 17, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' },
   emptyHint: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
+  inviteButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    marginTop: 20,
+  },
+  inviteButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
 
   card: {
     flexDirection: 'row',

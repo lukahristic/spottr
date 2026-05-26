@@ -605,7 +605,10 @@ export default function YourGymsScreen() {
 
                     <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Openness</Text>
                     <View style={styles.toggleRow}>
-                      <Text style={styles.toggleLabel}>Open to chat</Text>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.toggleLabel}>Open to chat</Text>
+                        <Text style={styles.toggleHint}>Resets every visit. Always your choice.</Text>
+                      </View>
                       <Switch
                         value={openToChat}
                         onValueChange={setOpenToChat}
