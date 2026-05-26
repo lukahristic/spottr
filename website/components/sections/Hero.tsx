@@ -35,6 +35,7 @@ const frontVariants = {
 export default function Hero() {
   const shouldReduce = useReducedMotion();
   const [email, setEmail] = useState("");
+  const [gymName, setGymName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -42,8 +43,12 @@ export default function Hero() {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) return;
+    const trimmedGym = gymName.trim();
     setStatus("loading");
-    const { error } = await supabase.from("waitlist").insert({ email: trimmed });
+    const { error } = await supabase.from("waitlist").insert({
+      email: trimmed,
+      gym_name: trimmedGym || null,
+    });
     if (error) {
       // Postgres unique-constraint code = 23505: already on the list
       setErrorMsg(error.code === "23505" ? "You're already on the list." : "Something went wrong. Try again.");
@@ -79,28 +84,39 @@ export default function Hero() {
           <FadeUp delay={0.55}>
             <form
               id="waitlist"
-              className="mt-10 flex flex-col sm:flex-row gap-3 max-w-md"
+              className="mt-10 flex flex-col gap-3 max-w-md"
               onSubmit={handleSubmit}
             >
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="first time, be nice"
+                  required
+                  disabled={status === "loading" || status === "success"}
+                  className="flex-1 px-5 py-3 rounded-full bg-surface text-ink placeholder:text-mute text-sm outline-none focus:ring-2 focus:ring-gold/40 transition-shadow disabled:opacity-50"
+                />
+                <motion.button
+                  type="submit"
+                  disabled={status === "loading" || status === "success"}
+                  className="px-7 py-3 rounded-full bg-gold text-ink font-medium text-sm whitespace-nowrap disabled:opacity-70"
+                  whileHover={status === "idle" ? { opacity: 0.9 } : {}}
+                  whileTap={status === "idle" ? { scale: 0.97 } : {}}
+                  transition={{ duration: 0.15 }}
+                >
+                  {status === "loading" ? "Saving…" : status === "success" ? "You're in ✓" : "I’m in"}
+                </motion.button>
+              </div>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="first time, be nice"
-                required
+                type="text"
+                value={gymName}
+                onChange={(e) => setGymName(e.target.value)}
+                placeholder="which gym do you train at? (optional)"
                 disabled={status === "loading" || status === "success"}
-                className="flex-1 px-5 py-3 rounded-full bg-surface text-ink placeholder:text-mute text-sm outline-none focus:ring-2 focus:ring-gold/40 transition-shadow disabled:opacity-50"
+                maxLength={120}
+                className="px-5 py-3 rounded-full bg-surface text-ink placeholder:text-mute text-sm outline-none focus:ring-2 focus:ring-gold/40 transition-shadow disabled:opacity-50"
               />
-              <motion.button
-                type="submit"
-                disabled={status === "loading" || status === "success"}
-                className="px-7 py-3 rounded-full bg-gold text-ink font-medium text-sm whitespace-nowrap disabled:opacity-70"
-                whileHover={status === "idle" ? { opacity: 0.9 } : {}}
-                whileTap={status === "idle" ? { scale: 0.97 } : {}}
-                transition={{ duration: 0.15 }}
-              >
-                {status === "loading" ? "Saving…" : status === "success" ? "You're in ✓" : "I’m in"}
-              </motion.button>
             </form>
             {status === "success" && (
               <p className="mt-3 text-xs text-gold">You&rsquo;re on the list. We&rsquo;ll be in touch when Spottr opens at your gym.</p>

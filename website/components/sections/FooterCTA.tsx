@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase/browser";
  */
 export default function FooterCTA() {
   const [email, setEmail] = useState("");
+  const [gymName, setGymName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -18,8 +19,12 @@ export default function FooterCTA() {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) return;
+    const trimmedGym = gymName.trim();
     setStatus("loading");
-    const { error } = await supabase.from("waitlist").insert({ email: trimmed });
+    const { error } = await supabase.from("waitlist").insert({
+      email: trimmed,
+      gym_name: trimmedGym || null,
+    });
     if (error) {
       setErrorMsg(error.code === "23505" ? "You're already on the list." : "Something went wrong. Try again.");
       setStatus("error");
@@ -42,25 +47,36 @@ export default function FooterCTA() {
           </p>
 
           <form
-            className="mt-10 flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+            className="mt-10 flex flex-col gap-3 max-w-md mx-auto"
             onSubmit={handleSubmit}
           >
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your email"
+                required
+                disabled={status === "loading" || status === "success"}
+                className="flex-1 px-5 py-3 rounded-full bg-cream text-ink placeholder:text-mute text-sm outline-none focus:ring-2 focus:ring-gold/40 transition-shadow border border-ink/10 disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={status === "loading" || status === "success"}
+                className="px-7 py-3 rounded-full bg-gold text-ink font-medium text-sm hover:opacity-90 transition-opacity whitespace-nowrap disabled:opacity-70"
+              >
+                {status === "loading" ? "Saving…" : status === "success" ? "You're in ✓" : "I'm in"}
+              </button>
+            </div>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your email"
-              required
+              type="text"
+              value={gymName}
+              onChange={(e) => setGymName(e.target.value)}
+              placeholder="which gym do you train at? (optional)"
               disabled={status === "loading" || status === "success"}
-              className="flex-1 px-5 py-3 rounded-full bg-cream text-ink placeholder:text-mute text-sm outline-none focus:ring-2 focus:ring-gold/40 transition-shadow border border-ink/10 disabled:opacity-50"
+              maxLength={120}
+              className="px-5 py-3 rounded-full bg-cream text-ink placeholder:text-mute text-sm outline-none focus:ring-2 focus:ring-gold/40 transition-shadow border border-ink/10 disabled:opacity-50"
             />
-            <button
-              type="submit"
-              disabled={status === "loading" || status === "success"}
-              className="px-7 py-3 rounded-full bg-gold text-ink font-medium text-sm hover:opacity-90 transition-opacity whitespace-nowrap disabled:opacity-70"
-            >
-              {status === "loading" ? "Saving…" : status === "success" ? "You're in ✓" : "I'm in"}
-            </button>
           </form>
           {status === "success" && (
             <p className="mt-4 text-sm text-gold">You&rsquo;re on the list. We&rsquo;ll be in touch when Spottr opens at your gym.</p>
