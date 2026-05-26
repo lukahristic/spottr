@@ -12,15 +12,19 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { ChevronLeft, Lock } from 'lucide-react-native'
+import { ChevronLeft } from 'lucide-react-native'
 import { supabase } from '../lib/supabase'
 import { Avatar, AvatarStyle } from '../components/Avatar'
 import { colors } from '../.claude/tokens/colors'
 
+// Personas tier removed 2026-05-27 (roadmap 7.1). Was gated behind email
+// verification as a "premium" feature with no actual monetization. Existing
+// users with personas selected continue to render — Avatar.tsx still
+// supports the URL — they just can't pick it again. The `personas` value
+// is intentionally kept in AvatarStyle for backwards compatibility.
 const STYLES: { key: AvatarStyle; label: string; premium?: boolean }[] = [
-  { key: 'thumbs',            label: 'Thumbs'   },
+  { key: 'thumbs',            label: 'Thumbs'    },
   { key: 'avataaars-neutral', label: 'Avataaars' },
-  { key: 'personas',          label: 'Persona',  premium: true },
 ]
 
 const EXPERIENCE_LEVELS = [
@@ -62,7 +66,6 @@ export default function EditProfileScreen() {
   const [avatarStyle, setAvatarStyle]     = useState<AvatarStyle>('thumbs')
   const [selectedSeed, setSelectedSeed]   = useState('')
   const [gridSeeds, setGridSeeds]         = useState<string[]>([])
-  const [showPersonaLock, setShowPersonaLock] = useState(false)
 
   const [email, setEmail]                 = useState('')
   const [emailConfirmed, setEmailConfirmed] = useState(false)
@@ -121,11 +124,6 @@ export default function EditProfileScreen() {
   }, [])
 
   function handleStyleSwitch(s: AvatarStyle) {
-    if (s === 'personas' && !emailConfirmed) {
-      setShowPersonaLock(v => !v)
-      return
-    }
-    setShowPersonaLock(false)
     setAvatarStyle(s)
   }
 
@@ -238,16 +236,14 @@ export default function EditProfileScreen() {
         <Text style={styles.sectionLabel}>Avatar style</Text>
         <View style={styles.styleRow}>
           {STYLES.map((s) => {
-            const isLocked = s.premium && !emailConfirmed
             const isSelected = avatarStyle === s.key
             return (
               <TouchableOpacity
                 key={s.key}
-                style={[styles.styleChip, isSelected && styles.styleChipSelected, isLocked && styles.styleChipLocked]}
+                style={[styles.styleChip, isSelected && styles.styleChipSelected]}
                 onPress={() => handleStyleSwitch(s.key)}
                 activeOpacity={0.7}
               >
-                {isLocked && <Lock size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />}
                 <Text style={[styles.styleChipText, isSelected && styles.styleChipTextSelected]}>
                   {s.label}
                 </Text>
@@ -255,26 +251,6 @@ export default function EditProfileScreen() {
             )
           })}
         </View>
-        {showPersonaLock && (
-          <View style={styles.lockPanel}>
-            <Text style={styles.lockPanelText}>
-              Unlock Persona avatars by verifying your email.
-            </Text>
-            {verificationSent ? (
-              <Text style={styles.lockPanelSent}>Verification sent. Check your inbox when you're ready.</Text>
-            ) : (
-              <TouchableOpacity onPress={handleResendVerification} activeOpacity={0.7}>
-                <Text style={styles.lockPanelLink}>Verify email</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-        {emailConfirmed && avatarStyle === 'personas' && (
-          <Text style={styles.personaUnlockedMsg}>
-            Persona unlocked. Pick one that feels like you.
-          </Text>
-        )}
-
         {/* Avatar grid */}
         <View style={styles.grid}>
           {gridSeeds.map((seed) => (
@@ -546,9 +522,6 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     backgroundColor: colors.surface,
   },
-  styleChipLocked: {
-    opacity: 0.6,
-  },
   styleChipText: {
     fontSize: 14,
     color: colors.textSecondary,
@@ -557,29 +530,6 @@ const styles = StyleSheet.create({
   styleChipTextSelected: {
     color: colors.textPrimary,
     fontWeight: '600',
-  },
-  lockPanel: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 4,
-    marginBottom: 8,
-    gap: 8,
-  },
-  lockPanelText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  lockPanelLink: {
-    fontSize: 13,
-    color: colors.accent,
-    fontWeight: '600',
-  },
-  lockPanelSent: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
   },
   emailCurrentRow: {
     flexDirection: 'row',
@@ -633,13 +583,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '500',
   },
-  personaUnlockedMsg: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 8,
-    fontStyle: 'italic',
-  },
-
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
