@@ -1,5 +1,59 @@
 # Spottr — Claude Code Project Memory
 
+---
+
+## Current Operating Mode: FEATURE FREEZE
+
+**Instituted:** 2026-05-27
+**Lifts when:** private beta closes (≥30 active users at seed gym for ≥2 consecutive weeks, **or** explicit founder decision)
+**Reason:** the product is functionally complete for MVP. The remaining work is validation, not engineering. Every hour spent building is an hour not spent talking to users.
+
+### What is prohibited under the freeze
+
+- New product features (anything that wasn't in the MVP scope as of 2026-05-27)
+- New screens or routes in the mobile app
+- New database tables (except as explicitly required by roadmap items 1.2–1.7)
+- New columns (except as explicitly required by roadmap items 1.2–1.7)
+- New admin or partner portal features
+- Refactors that aren't fixing a known bug
+- New libraries or dependencies
+- Premium features, monetization scaffolding, or commercial logic
+- "While we're at it" enhancements
+
+### What is allowed under the freeze
+
+- Bug fixes for existing functionality
+- Copy and microcopy edits (see `.claude/skills/spottr-voice.md` for calibration)
+- Visual polish on existing flows (no new flows)
+- Items explicitly listed in `docs/internal/ROADMAP.md` Section 1 (Critical fixes before beta) and Section 2 (Launch blockers)
+- Marketing site changes
+- Analytics / telemetry that respects the privacy policy
+- Removals and simplifications (Section 7 of the roadmap)
+- Documentation updates
+
+### If in doubt
+
+The default is **no**. If Claude or the founder isn't sure whether a change is allowed under the freeze, the answer is no — flag it as out-of-scope and add to `docs/internal/ROADMAP.md` for post-freeze consideration.
+
+### Anti-loophole rules
+
+- "It's just a small change" is not a reason to bypass the freeze.
+- "It would only take an hour" is not a reason to bypass the freeze.
+- "The user might want this" is not a reason to bypass the freeze.
+- "Let's just add a column" is not a reason to bypass the freeze.
+
+The discipline is the point. The freeze isn't about specific features — it's about reorienting energy from building to validating.
+
+### How to lift the freeze
+
+Either:
+- Founder posts a dated note: "Feature freeze lifted as of [date]. Reason: [reason]." in `docs/internal/PROJECT_STATE.md` or `memory/spottr-current-state.md`, OR
+- The beta-close criteria are met and documented in the state file.
+
+Until then, this rule overrides every other rule below.
+
+---
+
 ## Product Purpose
 
 Spottr is a gym-focused mobile app that helps people connect safely inside the same gym.
@@ -165,6 +219,8 @@ Avoid unnecessary libraries.
 
 ## Engineering Rules
 
+**First check: does this work conform to the Feature Freeze at the top of this file?** If no, stop. Surface the question, don't proceed.
+
 - build one feature at a time
 - inspect existing architecture first
 - keep components small
@@ -176,11 +232,12 @@ Avoid unnecessary libraries.
 
 Before coding:
 
-1. inspect current implementation
-2. explain implementation plan
-3. identify affected files
-4. identify risks
-5. implement minimal changes
+1. **confirm the work is allowed under the freeze**
+2. inspect current implementation
+3. explain implementation plan
+4. identify affected files
+5. identify risks
+6. implement minimal changes
 
 ---
 
