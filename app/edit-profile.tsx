@@ -78,6 +78,9 @@ export default function EditProfileScreen() {
   const [showExperienceLevel, setShowExperienceLevel]       = useState(true)
   const [showFitnessGoal, setShowFitnessGoal]               = useState(true)
 
+  // Notification preferences (separate from privacy — concerns delivery, not visibility).
+  const [notifyGymActivity, setNotifyGymActivity] = useState(true)
+
   const [experienceLevel, setExperienceLevel] = useState<string | null>(null)
   const [fitnessGoal, setFitnessGoal]         = useState<string | null>(null)
 
@@ -93,7 +96,7 @@ export default function EditProfileScreen() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal')
+        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, notify_gym_activity')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -107,6 +110,7 @@ export default function EditProfileScreen() {
       setShowCurrentGym(profile?.show_current_gym ?? false)
       setShowExperienceLevel(profile?.show_experience_level ?? true)
       setShowFitnessGoal(profile?.show_fitness_goal ?? true)
+      setNotifyGymActivity(profile?.notify_gym_activity ?? true)
 
       setExperienceLevel(profile?.experience_level ?? null)
       setFitnessGoal(profile?.fitness_goal ?? null)
@@ -459,6 +463,26 @@ export default function EditProfileScreen() {
 
         <View style={styles.divider} />
 
+        {/* Notifications */}
+        <Text style={styles.sectionLabel}>Notifications</Text>
+        <View style={styles.privacyRow}>
+          <View style={{ flex: 1, gap: 2, paddingRight: 12 }}>
+            <Text style={styles.privacyLabel}>Activity at my gyms</Text>
+            <Text style={styles.privacyHint}>Get a quiet ping when someone checks in at a gym in your list.</Text>
+          </View>
+          <Switch
+            value={notifyGymActivity}
+            onValueChange={(v) => {
+              setNotifyGymActivity(v)
+              savePrivacyField('notify_gym_activity', v)
+            }}
+            trackColor={{ false: '#C8C2BB', true: colors.accent }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+
+        <View style={styles.divider} />
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity
@@ -724,6 +748,11 @@ const styles = StyleSheet.create({
   privacyLabel: {
     fontSize: 14,
     color: colors.textPrimary,
+  },
+  privacyHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
 
   saveBtn: {
