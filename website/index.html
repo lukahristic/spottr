@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spottr — The gym, but less awkward.</title>
+  <style>
+    /* ── Design Tokens ── */
+    :root {
+      --bg:           #FAF8F4;
+      --surface:      #F2EEE7;
+      --text:         #2B2B2B;
+      --text-muted:   #7A746D;
+      --accent:       #DFAF3A;
+      --accent-dark:  #B88E28;
+      --status-open:  #B8D8C0;
+      --status-learn: #F3D7B6;
+      --status-focus: #C9D8E8;
+      --dark-bg:      #1C1A16;
+      --dark-surface: #252219;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Animation Keyframes ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-12px); }
+    }
+    @keyframes floatBadge {
+      0%, 100% { transform: translateY(0px) rotate(-2deg); }
+      50%       { transform: translateY(-8px) rotate(-2deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.6; transform: scale(0.85); }
+    }
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-32px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(32px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes navSlide {
+      from { opacity: 0; transform: translateY(-100%); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes gradientShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* ── Scroll-triggered base states ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-left {
+      opacity: 0;
+      transform: translateX(-32px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal-left.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .reveal-right {
+      opacity: 0;
+      transform: translateX(32px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal-right.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .reveal-scale {
+      opacity: 0;
+      transform: scale(0.92);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal-scale.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* ── Navigation ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 20px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      animation: navSlide 0.6s ease both;
+      transition: background 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
+    }
+    nav.scrolled {
+      background: rgba(250, 248, 244, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 1px 0 rgba(43, 43, 43, 0.08);
+    }
+    .nav-logo {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links {
+      display: flex;
+      gap: 36px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--text);
+      color: var(--bg);
+      padding: 10px 22px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .nav-cta:hover { background: #111; transform: translateY(-1px); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 120px 48px 80px;
+      max-width: 1200px;
+      margin: 0 auto;
+      gap: 64px;
+    }
+    .hero-content { flex: 1; max-width: 560px; }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid rgba(223, 175, 58, 0.25);
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 100px;
+      margin-bottom: 28px;
+      animation: fadeUp 0.7s ease 0.2s both;
+    }
+    .hero-eyebrow .dot {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s ease infinite;
+    }
+    .hero-headline {
+      font-size: clamp(44px, 6vw, 76px);
+      font-weight: 800;
+      letter-spacing: -2.5px;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      animation: fadeUp 0.7s ease 0.35s both;
+    }
+    .hero-headline em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent) 0%, #E8C55A 50%, var(--accent) 100%);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 4s ease infinite;
+    }
+    .hero-sub {
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 40px;
+      animation: fadeUp 0.7s ease 0.5s both;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      animation: fadeUp 0.7s ease 0.65s both;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--text);
+      padding: 14px 28px;
+      border-radius: 100px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 20px rgba(223, 175, 58, 0.35);
+    }
+    .btn-primary:hover {
+      background: var(--accent-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(223, 175, 58, 0.45);
+    }
+    .btn-ghost {
+      color: var(--text-muted);
+      font-size: 15px;
+      font-weight: 500;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s ease;
+    }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-ghost svg { transition: transform 0.2s ease; }
+    .btn-ghost:hover svg { transform: translateX(3px); }
+
+    /* ── Hero Visual ── */
+    .hero-visual {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      animation: fadeIn 0.8s ease 0.4s both;
+    }
+    .phone-mockup {
+      width: 260px;
+      height: 520px;
+      background: var(--dark-bg);
+      border-radius: 40px;
+      border: 6px solid #333;
+      position: relative;
+      overflow: hidden;
+      animation: float 5s ease-in-out infinite;
+      box-shadow:
+        0 40px 80px rgba(0,0,0,0.25),
+        0 0 0 1px rgba(255,255,255,0.05) inset;
+    }
+    .phone-notch {
+      width: 80px; height: 24px;
+      background: #111;
+      border-radius: 0 0 16px 16px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
+    }
+    .phone-screen {
+      padding: 12px 16px;
+    }
+    .phone-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .phone-title { color: #FAF8F4; font-size: 16px; font-weight: 700; }
+    .phone-live {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(184, 216, 192, 0.15);
+      padding: 3px 10px;
+      border-radius: 100px;
+    }
+    .phone-live-dot {
+      width: 6px; height: 6px;
+      background: #B8D8C0;
+      border-radius: 50%;
+      animation: pulse 1.5s ease infinite;
+    }
+    .phone-live span { color: #B8D8C0; font-size: 10px; font-weight: 600; }
+    .phone-member {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .phone-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+    .phone-member-info { flex: 1; }
+    .phone-member-name { color: #FAF8F4; font-size: 12px; font-weight: 600; }
+    .phone-member-goal { color: rgba(255,255,255,0.45); font-size: 10px; margin-top: 1px; }
+    .phone-vibe {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 100px;
+      color: var(--text);
+    }
+    .floating-badge {
+      position: absolute;
+      right: -20px;
+      bottom: 140px;
+      background: white;
+      border-radius: 16px;
+      padding: 10px 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      animation: floatBadge 4s ease-in-out 1s infinite;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .floating-badge .open-dot {
+      width: 8px; height: 8px;
+      background: var(--status-open);
+      border-radius: 50%;
+    }
+    .floating-badge-2 {
+      position: absolute;
+      left: -24px;
+      top: 120px;
+      background: white;
+      border-radius: 16px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      animation: floatBadge 4s ease-in-out 2s infinite;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-emoji { font-size: 16px; }
+
+    /* ── Section base ── */
+    section {
+      padding: 100px 48px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .section-eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent-dark);
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .section-sub {
+      font-size: 17px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      max-width: 520px;
+      margin-bottom: 64px;
+    }
+
+    /* ── How It Works ── */
+    .how-section { background: transparent; }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+    .step-card {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 36px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .step-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    }
+    .step-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+    .step-card:hover::before { transform: scaleX(1); }
+    .step-number {
+      font-size: 56px;
+      font-weight: 900;
+      color: rgba(223, 175, 58, 0.12);
+      line-height: 1;
+      margin-bottom: 24px;
+      letter-spacing: -3px;
+    }
+    .step-icon {
+      font-size: 36px;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .step-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+    .step-desc {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── Features ── */
+    .features-section {
+      background: var(--surface);
+      border-radius: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2px;
+      background: rgba(43, 43, 43, 0.08);
+      border-radius: 24px;
+      overflow: hidden;
+    }
+    .feature-card {
+      background: var(--surface);
+      padding: 40px;
+      transition: background 0.3s ease;
+    }
+    .feature-card:hover { background: var(--bg); }
+    .feature-icon {
+      width: 52px; height: 52px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .feature-title {
+      font-size: 19px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+    .feature-desc {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── Vibe badges ── */
+    .vibe-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 32px;
+    }
+    .vibe-chip {
+      padding: 8px 18px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.2s ease;
+    }
+    .vibe-chip:hover { transform: scale(1.05); }
+
+    /* ── CTA Section ── */
+    .cta-wrapper {
+      padding: 0 48px 100px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .cta-section {
+      background: var(--dark-bg);
+      border-radius: 40px;
+      padding: 96px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: -80px; left: 50%;
+      transform: translateX(-50%);
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(223, 175, 58, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+    .cta-title {
+      font-size: clamp(32px, 4vw, 56px);
+      font-weight: 800;
+      letter-spacing: -2px;
+      color: #FAF8F4;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .cta-sub {
+      font-size: 17px;
+      color: rgba(250, 248, 244, 0.5);
+      margin-bottom: 48px;
+    }
+    .cta-actions {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+    .btn-primary-dark {
+      background: var(--accent);
+      color: var(--text);
+      padding: 16px 36px;
+      border-radius: 100px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 24px rgba(223, 175, 58, 0.4);
+    }
+    .btn-primary-dark:hover {
+      background: var(--accent-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(223, 175, 58, 0.5);
+    }
+    .btn-ghost-dark {
+      background: rgba(255,255,255,0.08);
+      color: rgba(250,248,244,0.8);
+      padding: 16px 32px;
+      border-radius: 100px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .btn-ghost-dark:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid rgba(43, 43, 43, 0.1);
+      padding: 40px 48px;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .footer-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .footer-logo span { color: var(--accent); }
+    .footer-copy {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .footer-links {
+      display: flex;
+      gap: 28px;
+      list-style: none;
+    }
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s ease;
+    }
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── Stagger helper ── */
+    .stagger-1 { transition-delay: 0s; }
+    .stagger-2 { transition-delay: 0.12s; }
+    .stagger-3 { transition-delay: 0.24s; }
+    .stagger-4 { transition-delay: 0.36s; }
+
+    /* ── Divider ── */
+    .section-divider {
+      width: 48px;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      margin-bottom: 48px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      nav { padding: 16px 24px; }
+      .hero { flex-direction: column; padding: 100px 24px 60px; text-align: center; }
+      .hero-actions { justify-content: center; }
+      .hero-visual { order: -1; }
+      section { padding: 72px 24px; }
+      .steps-grid { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .cta-wrapper { padding: 0 24px 72px; }
+      .cta-section { padding: 64px 32px; }
+      .cta-actions { flex-direction: column; align-items: center; }
+      footer { flex-direction: column; gap: 24px; text-align: center; }
+      .floating-badge { display: none; }
+      .floating-badge-2 { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Navigation ── -->
+  <nav id="navbar">
+    <a href="#" class="nav-logo">Spottr<span>.</span></a>
+    <ul class="nav-links">
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#download">Download</a></li>
+    </ul>
+    <a href="#download" class="nav-cta">Get the app</a>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <div class="hero">
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <span class="dot"></span>
+        For gym-goers who get it
+      </div>
+      <h1 class="hero-headline">
+        The gym,<br>but <em>less awkward.</em>
+      </h1>
+      <p class="hero-sub">
+        Check in. Share your vibe. Quietly signal if you're open to a conversation — no pressure, no awkwardness, just real connection.
+      </p>
+      <div class="hero-actions">
+        <a href="#download" class="btn-primary">Download the app</a>
+        <a href="#how" class="btn-ghost">
+          See how it works
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8h10M9 4l4 4-4 4"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <!-- Phone mockup -->
+      <div class="phone-mockup">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="phone-header">
+            <span class="phone-title">Who's here</span>
+            <div class="phone-live">
+              <div class="phone-live-dot"></div>
+              <span>Live</span>
+            </div>
+          </div>
+          <!-- Members -->
+          <div class="phone-member">
+            <div class="phone-avatar" style="background:#C9D8E8;">JL</div>
+            <div class="phone-member-info">
+              <div class="phone-member-name">Jordan L.</div>
+              <div class="phone-member-goal">Build muscle</div>
+            </div>
+            <div class="phone-vibe" style="background:#C9D8E8;">Focused</div>
+          </div>
+          <div class="phone-member">
+            <div class="phone-avatar" style="background:#B8D8C0;">SM</div>
+            <div class="phone-member-info">
+              <div class="phone-member-name">Sarah M.</div>
+              <div class="phone-member-goal">Stay active</div>
+            </div>
+            <div class="phone-vibe" style="background:#B8D8C0;">Open ✓</div>
+          </div>
+          <div class="phone-member">
+            <div class="phone-avatar" style="background:#F3D7B6;">AR</div>
+            <div class="phone-member-info">
+              <div class="phone-member-name">Alex R.</div>
+              <div class="phone-member-goal">Lose weight</div>
+            </div>
+            <div class="phone-vibe" style="background:#F3D7B6;">Learning</div>
+          </div>
+          <div class="phone-member">
+            <div class="phone-avatar" style="background:#DFAF3A;">WV</div>
+            <div class="phone-member-info">
+              <div class="phone-member-name">Wency V.</div>
+              <div class="phone-member-goal">Get stronger</div>
+            </div>
+            <div class="phone-vibe" style="background:#B8D8C0;">Open ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating badges -->
+      <div class="floating-badge">
+        <div class="open-dot"></div>
+        Sarah is open to chat
+      </div>
+      <div class="floating-badge-2">
+        <span class="badge-emoji">🏋️</span>
+        4 people at your gym
+      </div>
+    </div>
+  </div>
+
+  <!-- ── How It Works ── -->
+  <section id="how" class="how-section">
+    <div class="section-eyebrow reveal">How it works</div>
+    <h2 class="section-title reveal">Three steps to a<br>less awkward gym.</h2>
+    <p class="section-sub reveal">No swiping. No profiles. Just show up, signal your vibe, and let the right moments happen.</p>
+    <div class="section-divider reveal"></div>
+
+    <div class="steps-grid">
+      <div class="step-card reveal stagger-1">
+        <div class="step-number">01</div>
+        <span class="step-icon">📍</span>
+        <h3 class="step-title">Check in at your gym</h3>
+        <p class="step-desc">Select your gym and check in. You instantly appear on the live member list — visible only to people in the same space.</p>
+      </div>
+      <div class="step-card reveal stagger-2">
+        <div class="step-number">02</div>
+        <span class="step-icon">✨</span>
+        <h3 class="step-title">Set your vibe</h3>
+        <p class="step-desc">Are you locked in, learning, or open to chatting? Pick a status that tells people where your head's at — no pressure either way.</p>
+      </div>
+      <div class="step-card reveal stagger-3">
+        <div class="step-number">03</div>
+        <span class="step-icon">👋</span>
+        <h3 class="step-title">Connect naturally</h3>
+        <p class="step-desc">See who's open. Send a friendly intro. If they reply, you've got a real conversation — gym-only, consent-first, always in your control.</p>
+      </div>
+    </div>
+
+    <div class="vibe-chips" style="margin-top:56px;">
+      <div class="section-eyebrow reveal" style="width:100%;margin-bottom:4px;">Your vibe, your choice</div>
+      <div class="vibe-chip reveal stagger-1" style="background:var(--status-focus);">🎯 Focused — heads down</div>
+      <div class="vibe-chip reveal stagger-2" style="background:var(--status-learn);">📖 Learning the ropes</div>
+      <div class="vibe-chip reveal stagger-3" style="background:var(--status-open);">👋 Open to chat</div>
+    </div>
+  </section>
+
+  <!-- ── Features ── -->
+  <section id="features" style="padding: 0 48px 100px; max-width: 1200px; margin: 0 auto;">
+    <div class="section-eyebrow reveal">Why Spottr</div>
+    <h2 class="section-title reveal">Built around<br>your comfort.</h2>
+    <p class="section-sub reveal">Every feature exists to make gym interactions feel more natural — not more stressful.</p>
+
+    <div class="features-section reveal-scale">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="background:var(--status-focus);">🔒</div>
+          <h3 class="feature-title">Gym-only visibility</h3>
+          <p class="feature-desc">You only appear to people checked into the same gym. The moment you leave, you disappear. No trace, no lingering profile.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:var(--status-open);">💬</div>
+          <h3 class="feature-title">Consent-first messaging</h3>
+          <p class="feature-desc">Anyone can send one intro message. But a full conversation only unlocks when the other person replies. You're always in control.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:var(--status-learn);">✨</div>
+          <h3 class="feature-title">Real-time vibe system</h3>
+          <p class="feature-desc">Your status tells people what kind of energy you're bringing today. Update it anytime. Openness always resets when you check in fresh.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(223,175,58,0.2);">🏟️</div>
+          <h3 class="feature-title">Works at any gym</h3>
+          <p class="feature-desc">Select your gym from our growing list. Check in, see who's here, and build real familiarity with your regular workout crowd.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA ── -->
+  <div class="cta-wrapper" id="download">
+    <div class="cta-section reveal-scale">
+      <div class="cta-eyebrow">✦ Ready when you are</div>
+      <h2 class="cta-title">Make your gym feel<br>like yours.</h2>
+      <p class="cta-sub">Join gym-goers who've stopped staring at their phone and started noticing the people around them.</p>
+      <div class="cta-actions">
+        <a href="#" class="btn-primary-dark">📱 Download for iOS</a>
+        <a href="#" class="btn-ghost-dark">🤖 Get it on Android</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer>
+    <a href="#" class="footer-logo">Spottr<span>.</span></a>
+    <p class="footer-copy">© 2025 Spottr. Gym connections, done right.</p>
+    <ul class="footer-links">
+      <li><a href="#">Privacy</a></li>
+      <li><a href="#">Terms</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+  </footer>
+
+  <!-- ── Animation Script ── -->
+  <script>
+    // Sticky nav on scroll
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      navbar.classList.toggle('scrolled', window.scrollY > 40);
+    });
+
+    // Intersection Observer for scroll-triggered reveals
+    const revealEls = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    revealEls.forEach(el => observer.observe(el));
+
+    // Stagger children inside step cards
+    document.querySelectorAll('.steps-grid .step-card').forEach((card, i) => {
+      card.style.transitionDelay = `${i * 0.12}s`;
+    });
+    document.querySelectorAll('.vibe-chip').forEach((chip, i) => {
+      chip.style.transitionDelay = `${i * 0.1}s`;
+    });
+  </script>
+</body>
+</html>
