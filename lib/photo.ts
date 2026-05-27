@@ -1,5 +1,7 @@
 import { supabase } from './supabase'
 
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
+
 /*
  * Upload a profile photo (from a local Expo Camera URI) to Supabase Storage
  * and update the user's profiles row with the resulting URL.
@@ -8,44 +10,64 @@ import { supabase } from './supabase'
  * overwrite. To bust caches across clients, the public URL we store on the
  * profile includes a ?v=<timestamp> query string that changes on each upload.
  *
+ * Why we don't use supabase.storage.upload() here
+ * ────────────────────────────────────────────────
+ * Both blob() and arrayBuffer() built from an Expo Camera file:// URI produce
+ * a 0-byte multipart body inside React Native (the runtime's Blob/Buffer
+ * implementation drops the binary when supabase-js wraps it for the request).
+ * The server sees an empty body and returns 400.
+ *
+ * The reliable RN pattern is to POST directly to the Storage REST endpoint
+ * with multipart FormData using the { uri, name, type } shape — RN's own
+ * FormData implementation handles this natively on both iOS and Android and
+ * produces a proper multipart payload. We let fetch set the Content-Type
+ * boundary automatically.
+ *
  * Returns the new URL on success, or an error message string on failure.
- * Callers should treat any return value other than { url, uploadedAt } as
- * a failure to render to the user.
  */
 export async function uploadProfilePhoto(
   localUri: string
 ): Promise<{ url: string; uploadedAt: string } | { error: string }> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Sign in first.' }
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) return { error: 'Sign in first.' }
+  const userId = session.user.id
 
-  /*
-   * RN's fetch handles local file URIs (file://...) and returns a body we
-   * can read as an ArrayBuffer. We use arrayBuffer() rather than blob()
-   * because React Native's Blob implementation can produce objects with an
-   * empty or incorrect MIME type, which Supabase Storage rejects against the
-   * bucket's allowed_mime_types list. ArrayBuffer bypasses that entirely —
-   * the content-type comes solely from the explicit option we pass below.
-   */
-  let arrayBuffer: ArrayBuffer
+  const path = `${userId}/avatar.jpg`
+
+  // RN FormData with the file-shape object — this is the only form of
+  // binary upload that survives the JS-to-native bridge intact.
+  const formData = new FormData()
+  formData.append('file', {
+    uri: localUri,
+    name: 'avatar.jpg',
+    type: 'image/jpeg',
+  } as unknown as Blob)
+
+  let uploadResponse: Response
   try {
-    const response = await fetch(localUri)
-    arrayBuffer = await response.arrayBuffer()
-  } catch {
-    return { error: "Couldn't read the photo. Try again." }
+    uploadResponse = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/profile-photos/${path}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          // x-upsert lets us overwrite the existing avatar.jpg at the same path.
+          'x-upsert': 'true',
+          // Intentionally NOT setting Content-Type — fetch will set
+          // 'multipart/form-data; boundary=...' for us. Setting it manually
+          // here strips the boundary and the request becomes unparseable.
+        },
+        body: formData,
+      }
+    )
+  } catch (err) {
+    console.error('[photo] Network error during upload:', String(err))
+    return { error: "Couldn't reach the server. Check your connection." }
   }
 
-  const path = `${user.id}/avatar.jpg`
-
-  const { error: uploadError } = await supabase.storage
-    .from('profile-photos')
-    .upload(path, arrayBuffer, {
-      contentType: 'image/jpeg',
-      upsert: true,           // overwrite previous photo at the same path
-      cacheControl: '3600',   // short cache; we still bust via ?v= below
-    })
-
-  if (uploadError) {
-    console.error('[photo] Supabase Storage upload error:', uploadError.message)
+  if (!uploadResponse.ok) {
+    const errorBody = await uploadResponse.text().catch(() => '')
+    console.error('[photo] Upload failed:', uploadResponse.status, errorBody)
     return { error: 'Upload failed. Try again.' }
   }
 
@@ -63,9 +85,10 @@ export async function uploadProfilePhoto(
       photo_url: versionedUrl,
       photo_uploaded_at: uploadedAt,
     })
-    .eq('id', user.id)
+    .eq('id', userId)
 
   if (profileError) {
+    console.error('[photo] Profile update failed:', profileError.message)
     return { error: 'Saved the photo but profile update failed. Try again.' }
   }
 
