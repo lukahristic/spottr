@@ -20,14 +20,16 @@ export async function uploadProfilePhoto(
 
   /*
    * RN's fetch handles local file URIs (file://...) and returns a body we
-   * can read as a blob. Supabase Storage accepts a blob directly. This is
-   * the simplest path that avoids pulling in expo-file-system or base64
-   * encoding helpers.
+   * can read as an ArrayBuffer. We use arrayBuffer() rather than blob()
+   * because React Native's Blob implementation can produce objects with an
+   * empty or incorrect MIME type, which Supabase Storage rejects against the
+   * bucket's allowed_mime_types list. ArrayBuffer bypasses that entirely —
+   * the content-type comes solely from the explicit option we pass below.
    */
-  let blob: Blob
+  let arrayBuffer: ArrayBuffer
   try {
     const response = await fetch(localUri)
-    blob = await response.blob()
+    arrayBuffer = await response.arrayBuffer()
   } catch {
     return { error: "Couldn't read the photo. Try again." }
   }
@@ -36,13 +38,14 @@ export async function uploadProfilePhoto(
 
   const { error: uploadError } = await supabase.storage
     .from('profile-photos')
-    .upload(path, blob, {
+    .upload(path, arrayBuffer, {
       contentType: 'image/jpeg',
       upsert: true,           // overwrite previous photo at the same path
       cacheControl: '3600',   // short cache; we still bust via ?v= below
     })
 
   if (uploadError) {
+    console.error('[photo] Supabase Storage upload error:', uploadError.message)
     return { error: 'Upload failed. Try again.' }
   }
 
