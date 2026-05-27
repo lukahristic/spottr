@@ -44,6 +44,9 @@ export default function PrivacyPage() {
                     <span className="text-ink font-medium">Profile info</span> — your name, short bio, and fitness details you choose to add.
                   </li>
                   <li>
+                    <span className="text-ink font-medium">Profile photo</span> — optional. If you take a selfie via the in-app camera, the photo is stored in our hosting provider&rsquo;s secure storage so other gym members can recognize you on the live list. We don&rsquo;t access your photo library — only the camera, only when you ask. You can delete or replace the photo from your profile settings at any time. There is no facial recognition, no AI processing, and no use of your photo outside Spottr.
+                  </li>
+                  <li>
                     <span className="text-ink font-medium">Check-in data</span> — which gym you checked in to, and when.
                   </li>
                   <li>
@@ -80,6 +83,7 @@ export default function PrivacyPage() {
                   <li><span className="text-ink font-medium">Profile and account</span> — until you delete your account.</li>
                   <li><span className="text-ink font-medium">Check-in records</span> — 12 months, then automatically deleted.</li>
                   <li><span className="text-ink font-medium">Messages</span> — kept while both participants have active accounts. When either deletes, the thread is removed within 30 days.</li>
+                  <li><span className="text-ink font-medium">Profile photo</span> — kept until you remove it or delete your account.</li>
                   <li><span className="text-ink font-medium">Reports about another user</span> — retained for 24 months to support moderation history, then deleted.</li>
                   <li><span className="text-ink font-medium">Push tokens</span> — until you turn off notifications or uninstall the app.</li>
                 </ul>

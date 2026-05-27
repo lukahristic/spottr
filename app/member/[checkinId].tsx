@@ -52,6 +52,7 @@ export default function MemberScreen() {
   const [memberBio, setMemberBio]               = useState<string | null>(null)
   const [memberAvatarSeed, setMemberAvatarSeed] = useState<string | null>(null)
   const [memberAvatarStyle, setMemberAvatarStyle] = useState<AvatarStyle>('thumbs')
+  const [memberPhotoUrl, setMemberPhotoUrl]       = useState<string | null>(null)
   const [memberExperienceLevel, setMemberExperienceLevel] = useState<string | null>(null)
   const [memberFitnessGoal, setMemberFitnessGoal]         = useState<string | null>(null)
   const [memberGymsVisited, setMemberGymsVisited]         = useState(0)
@@ -91,7 +92,7 @@ export default function MemberScreen() {
         ] = await Promise.all([
           supabase
             .from('profiles')
-            .select('bio, avatar_seed, avatar_style, show_experience_level, show_fitness_goal, show_gyms_visited, experience_level, fitness_goal')
+            .select('bio, avatar_seed, avatar_style, show_experience_level, show_fitness_goal, show_gyms_visited, experience_level, fitness_goal, photo_url')
             .eq('id', checkinData.user_id)
             .maybeSingle(),
           supabase
@@ -103,6 +104,7 @@ export default function MemberScreen() {
         setMemberBio(profile?.bio ?? null)
         setMemberAvatarSeed(profile?.avatar_seed ?? null)
         setMemberAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
+        setMemberPhotoUrl(profile?.photo_url ?? null)
         setMemberExperienceLevel(profile?.experience_level ?? null)
         setMemberFitnessGoal(profile?.fitness_goal ?? null)
         setMemberGymsVisited(gymsCount ?? 0)
@@ -334,6 +336,7 @@ export default function MemberScreen() {
               name={checkin.name}
               size={64}
               avatarStyle={memberAvatarStyle}
+              photoUrl={memberPhotoUrl}
             />
           </View>
 

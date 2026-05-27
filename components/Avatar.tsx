@@ -27,6 +27,12 @@ type Props = {
   bg?: string
   fg?: string
   avatarStyle?: AvatarStyle
+  /*
+   * If set, render this URL (a user-uploaded selfie) instead of the
+   * Dicebear-generated avatar. Falls back to the generated avatar if
+   * the photo URL fails to load, and to initials if both fail.
+   */
+  photoUrl?: string | null
 }
 
 export function Avatar({
@@ -36,10 +42,17 @@ export function Avatar({
   bg = '#2E211A',
   fg = '#F97316',
   avatarStyle = 'thumbs',
+  photoUrl,
 }: Props) {
-  const [failed, setFailed] = useState(false)
+  const [photoFailed, setPhotoFailed] = useState(false)
+  const [generatedFailed, setGeneratedFailed] = useState(false)
   const initials = getInitials(name)
   const fontSize = Math.round(size * 0.34)
+
+  // Three-tier rendering: real photo → generated avatar → initials.
+  // Each step only kicks in if the previous one failed to load.
+  const showPhoto = !!photoUrl && !photoFailed
+  const showGenerated = !showPhoto && !generatedFailed
 
   return (
     <View
@@ -53,14 +66,20 @@ export function Avatar({
         overflow: 'hidden',
       }}
     >
-      {failed ? (
-        <Text style={{ fontSize, fontWeight: '700', color: fg }}>{initials}</Text>
-      ) : (
+      {showPhoto ? (
+        <Image
+          source={{ uri: photoUrl! }}
+          style={{ width: size, height: size }}
+          onError={() => setPhotoFailed(true)}
+        />
+      ) : showGenerated ? (
         <Image
           source={{ uri: dicebearUrl(seed, size, avatarStyle) }}
           style={{ width: size, height: size }}
-          onError={() => setFailed(true)}
+          onError={() => setGeneratedFailed(true)}
         />
+      ) : (
+        <Text style={{ fontSize, fontWeight: '700', color: fg }}>{initials}</Text>
       )}
     </View>
   )

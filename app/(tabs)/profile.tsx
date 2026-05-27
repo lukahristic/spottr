@@ -25,6 +25,7 @@ export default function ProfileScreen() {
   const [bio, setBio]                     = useState<string | null>(null)
   const [avatarSeed, setAvatarSeed]       = useState<string | null>(null)
   const [avatarStyle, setAvatarStyle]     = useState<AvatarStyle>('thumbs')
+  const [photoUrl, setPhotoUrl]           = useState<string | null>(null)
   const [activeCheckinId, setActiveCheckinId] = useState<string | null>(null)
   const [currentVibe, setCurrentVibe]         = useState<string | null>(null)
   const [currentCustomVibe, setCurrentCustomVibe] = useState<string | null>(null)
@@ -65,7 +66,7 @@ export default function ProfileScreen() {
         ] = await Promise.all([
           supabase
             .from('profiles')
-            .select('bio, avatar_seed, avatar_style, women_verified, verification_requested_at, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal')
+            .select('bio, avatar_seed, avatar_style, women_verified, verification_requested_at, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, photo_url')
             .eq('id', user.id)
             .maybeSingle(),
           supabase
@@ -87,6 +88,7 @@ export default function ProfileScreen() {
         setBio(profile?.bio ?? null)
         setAvatarSeed(profile?.avatar_seed ?? null)
         setAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
+        setPhotoUrl(profile?.photo_url ?? null)
         setWomenVerified(profile?.women_verified ?? false)
         setVerificationRequested(!!profile?.verification_requested_at)
 
@@ -171,10 +173,22 @@ export default function ProfileScreen() {
             avatarStyle={avatarStyle}
             bg={colors.accent}
             fg={colors.textPrimary}
+            photoUrl={photoUrl}
           />
         </TouchableOpacity>
 
         <Text style={styles.displayName}>{name}</Text>
+
+        {/* Optional-but-encouraged nudge to add a real photo (roadmap 1.3) */}
+        {!photoUrl && userId ? (
+          <TouchableOpacity
+            style={styles.photoNudge}
+            onPress={() => router.push('/take-photo')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.photoNudgeText}>Add a photo so people can recognize you</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {bio ? (
           <Text style={styles.bio}>{bio}</Text>
@@ -362,6 +376,20 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
+  },
+
+  photoNudge: {
+    alignSelf: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  photoNudgeText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
 
   bio: {

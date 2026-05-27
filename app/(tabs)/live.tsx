@@ -81,7 +81,7 @@ export default function LiveListScreen() {
   const [refreshing, setRefreshing]       = useState(false)
   const [error, setError]                 = useState<string | null>(null)
   const [blockedIds, setBlockedIds]       = useState<Set<string>>(new Set())
-  const [avatarMap, setAvatarMap]         = useState<Record<string, { seed: string; style: AvatarStyle }>>({})
+  const [avatarMap, setAvatarMap]         = useState<Record<string, { seed: string; style: AvatarStyle; photoUrl: string | null }>>({})
 
   const [myCheckinId, setMyCheckinId]         = useState<string | null>(null)
   const [myName, setMyName]                   = useState<string | null>(null)
@@ -201,11 +201,15 @@ export default function LiveListScreen() {
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, avatar_seed, avatar_style')
+        .select('id, avatar_seed, avatar_style, photo_url')
         .in('id', userIds)
-      const map: Record<string, { seed: string; style: AvatarStyle }> = {}
+      const map: Record<string, { seed: string; style: AvatarStyle; photoUrl: string | null }> = {}
       for (const p of profiles ?? []) {
-        map[p.id] = { seed: p.avatar_seed, style: (p.avatar_style as AvatarStyle) ?? 'thumbs' }
+        map[p.id] = {
+          seed: p.avatar_seed,
+          style: (p.avatar_style as AvatarStyle) ?? 'thumbs',
+          photoUrl: p.photo_url ?? null,
+        }
       }
       setAvatarMap(map)
     }
@@ -538,6 +542,7 @@ export default function LiveListScreen() {
                 avatarStyle={avatarInfo?.style ?? 'thumbs'}
                 bg={colors.accent}
                 fg={colors.textPrimary}
+                photoUrl={avatarInfo?.photoUrl}
               />
               <View style={styles.cardBody}>
                 <View style={styles.cardTopRow}>

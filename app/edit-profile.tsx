@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   ActivityIndicator,
   Dimensions,
   Switch,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
+import { router, useFocusEffect } from 'expo-router'
+import { ChevronLeft, Camera, Trash2 } from 'lucide-react-native'
 import { supabase } from '../lib/supabase'
+import { removeProfilePhoto } from '../lib/photo'
 import { Avatar, AvatarStyle } from '../components/Avatar'
 import { colors } from '../.claude/tokens/colors'
 
@@ -66,6 +68,10 @@ export default function EditProfileScreen() {
   const [avatarStyle, setAvatarStyle]     = useState<AvatarStyle>('thumbs')
   const [selectedSeed, setSelectedSeed]   = useState('')
   const [gridSeeds, setGridSeeds]         = useState<string[]>([])
+  // Real selfie photo (roadmap 1.3). If set, it overrides the generated avatar
+  // in display, but the generated-avatar picker stays visible as a fallback.
+  const [photoUrl, setPhotoUrl]           = useState<string | null>(null)
+  const [removingPhoto, setRemovingPhoto] = useState(false)
 
   const [email, setEmail]                 = useState('')
   const [emailConfirmed, setEmailConfirmed] = useState(false)
@@ -99,7 +105,7 @@ export default function EditProfileScreen() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, notify_gym_activity')
+        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, notify_gym_activity, photo_url')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -107,6 +113,7 @@ export default function EditProfileScreen() {
       setAvatarStyle((profile?.avatar_style as AvatarStyle | null) ?? 'thumbs')
       setSelectedSeed(profile?.avatar_seed ?? randomSeed())
       setGridSeeds(generateSeeds())
+      setPhotoUrl(profile?.photo_url ?? null)
 
       setShowGymsVisited(profile?.show_gyms_visited ?? true)
       setShowConnectionsStarted(profile?.show_connections_started ?? true)
@@ -125,6 +132,48 @@ export default function EditProfileScreen() {
 
   function handleStyleSwitch(s: AvatarStyle) {
     setAvatarStyle(s)
+  }
+
+  // When the user returns from the take-photo screen, re-read photo_url so the
+  // preview updates without a full reload.
+  useFocusEffect(
+    useCallback(() => {
+      async function refreshPhoto() {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data } = await supabase
+          .from('profiles')
+          .select('photo_url')
+          .eq('id', user.id)
+          .maybeSingle()
+        setPhotoUrl(data?.photo_url ?? null)
+      }
+      refreshPhoto()
+    }, [])
+  )
+
+  function handleRemovePhoto() {
+    Alert.alert(
+      'Remove photo?',
+      "You'll be back to the generated avatar. You can take a new photo anytime.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setRemovingPhoto(true)
+            const result = await removeProfilePhoto()
+            setRemovingPhoto(false)
+            if ('error' in result) {
+              Alert.alert("That didn't work", result.error)
+              return
+            }
+            setPhotoUrl(null)
+          },
+        },
+      ]
+    )
   }
 
   async function handleEmailUpdate() {
@@ -220,17 +269,58 @@ export default function EditProfileScreen() {
           <View style={styles.backBtn} />
         </View>
 
-        {/* Avatar preview */}
+        {/* Avatar preview — shows real photo if uploaded, else generated avatar */}
         <View style={styles.previewWrap}>
           <Avatar
             seed={selectedSeed}
             name={name || 'You'}
-            size={88}
+            size={104}
             avatarStyle={avatarStyle}
             bg={colors.surface}
             fg={colors.textPrimary}
+            photoUrl={photoUrl}
           />
         </View>
+
+        {/* Photo CTAs — primary trust signal. Tap-through to take-photo screen. */}
+        {photoUrl ? (
+          <View style={styles.photoActionsRow}>
+            <TouchableOpacity
+              style={styles.photoActionBtn}
+              onPress={() => router.push('/take-photo')}
+              activeOpacity={0.75}
+              disabled={removingPhoto}
+            >
+              <Camera size={16} color={colors.textPrimary} />
+              <Text style={styles.photoActionText}>Retake</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.photoActionBtn}
+              onPress={handleRemovePhoto}
+              activeOpacity={0.75}
+              disabled={removingPhoto}
+            >
+              {removingPhoto
+                ? <ActivityIndicator color={colors.textPrimary} size="small" />
+                : <Trash2 size={16} color={colors.textPrimary} />}
+              <Text style={styles.photoActionText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.photoCtaWrap}>
+            <TouchableOpacity
+              style={styles.photoCtaBtn}
+              onPress={() => router.push('/take-photo')}
+              activeOpacity={0.85}
+            >
+              <Camera size={18} color={colors.textPrimary} />
+              <Text style={styles.photoCtaText}>Add a real photo</Text>
+            </TouchableOpacity>
+            <Text style={styles.photoCtaHint}>
+              People are more likely to say hi to a real face. Or pick a generated avatar below.
+            </Text>
+          </View>
+        )}
 
         {/* Style chips */}
         <Text style={styles.sectionLabel}>Avatar style</Text>
@@ -491,6 +581,50 @@ const styles = StyleSheet.create({
   backBtn: { width: 32 },
   heading: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
 
+  photoCtaWrap: {
+    marginBottom: 24,
+    gap: 8,
+  },
+  photoCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  photoCtaText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  photoCtaHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  photoActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  photoActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 11,
+  },
+  photoActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
   previewWrap: {
     alignItems: 'center',
     marginBottom: 24,

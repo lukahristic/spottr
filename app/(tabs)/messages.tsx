@@ -20,6 +20,7 @@ type ConversationItem = {
   otherUserName: string
   otherAvatarSeed: string | null
   otherAvatarStyle: AvatarStyle
+  otherPhotoUrl: string | null
   preview: string
   timestamp: string
   unreadCount: number
@@ -68,7 +69,7 @@ export default function MessagesScreen() {
         .order('created_at', { ascending: false }),
       supabase
         .from('profiles')
-        .select('id, avatar_seed, avatar_style')
+        .select('id, avatar_seed, avatar_style, photo_url')
         .in('id', otherUserIds),
     ])
 
@@ -82,9 +83,13 @@ export default function MessagesScreen() {
       if (!previewMap[m.thread_id]) previewMap[m.thread_id] = m.body
     }
 
-    const avatarProfileMap: Record<string, { seed: string; style: AvatarStyle }> = {}
+    const avatarProfileMap: Record<string, { seed: string; style: AvatarStyle; photoUrl: string | null }> = {}
     for (const p of profiles ?? []) {
-      avatarProfileMap[p.id] = { seed: p.avatar_seed, style: (p.avatar_style as AvatarStyle) ?? 'thumbs' }
+      avatarProfileMap[p.id] = {
+        seed: p.avatar_seed,
+        style: (p.avatar_style as AvatarStyle) ?? 'thumbs',
+        photoUrl: p.photo_url ?? null,
+      }
     }
 
     const items: ConversationItem[] = threadList.map((t) => {
@@ -97,6 +102,7 @@ export default function MessagesScreen() {
         otherUserName: nameMap[otherId] ?? 'Someone',
         otherAvatarSeed: avatarInfo?.seed ?? null,
         otherAvatarStyle: avatarInfo?.style ?? 'thumbs',
+        otherPhotoUrl: avatarInfo?.photoUrl ?? null,
         preview: previewMap[t.id] ?? '',
         timestamp: t.latest_message_at,
         unreadCount: unread ?? 0,
@@ -164,6 +170,7 @@ export default function MessagesScreen() {
           name={item.otherUserName}
           size={44}
           avatarStyle={item.otherAvatarStyle}
+          photoUrl={item.otherPhotoUrl}
         />
         <View style={styles.cardContent}>
           <View style={styles.cardTop}>
