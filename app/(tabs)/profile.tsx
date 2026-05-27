@@ -16,7 +16,7 @@ import { supabase } from '../../lib/supabase'
 import { Avatar, AvatarStyle } from '../../components/Avatar'
 import { colors } from '../../.claude/tokens/colors'
 
-const LEGAL_BASE = 'https://spottr.app'
+const LEGAL_BASE = 'https://website-lukahristics-projects.vercel.app'
 const APP_VERSION = Constants.expoConfig?.version ?? '—'
 
 export default function ProfileScreen() {
