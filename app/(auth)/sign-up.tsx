@@ -29,7 +29,7 @@ import { colors } from '../../.claude/tokens/colors'
  * dependency for a 30-second flow.
  */
 
-const LEGAL_BASE = 'https://spottr.app'
+const LEGAL_BASE = 'https://website-lukahristics-projects.vercel.app'
 
 function parseDOB(month: string, day: string, year: string): Date | null {
   const m = parseInt(month, 10)
