@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 
 /*
  * Upload a profile photo (from a local Expo Camera URI) to Supabase Storage
@@ -50,7 +51,15 @@ export async function uploadProfilePhoto(
       {
         method: 'POST',
         headers: {
+          // Both auth headers are required. Authorization carries the user's
+          // JWT (so auth.uid() resolves in RLS); apikey tells the API gateway
+          // which project context to evaluate in. Without apikey, RLS runs
+          // in the anon role even with a valid Bearer — and our INSERT
+          // policy demands auth.uid() match the folder name, which fails
+          // immediately for anon. supabase-js sets both automatically;
+          // direct REST calls have to set them by hand.
           Authorization: `Bearer ${session.access_token}`,
+          apikey: SUPABASE_ANON_KEY,
           // x-upsert lets us overwrite the existing avatar.jpg at the same path.
           'x-upsert': 'true',
           // Intentionally NOT setting Content-Type — fetch will set
