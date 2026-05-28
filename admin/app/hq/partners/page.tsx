@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { removePartner } from '../actions'
 import { InviteForm } from './InviteForm'
 import SubmitButton from '@/components/SubmitButton'
@@ -15,6 +14,7 @@ type AdminRow = {
   role: string
   created_at: string
   invited_by: string | null
+  partner_terms_accepted_at: string | null
 }
 
 export default async function PartnersPage() {
@@ -27,24 +27,11 @@ export default async function PartnersPage() {
 
   const admins = (adminsRaw as AdminRow[] | null) ?? []
 
-  // Detect active (finished setup, has a password) vs pending (provisioned but
-  // hasn't set a password yet). We key off the password_set metadata flag, not
-  // email_confirmed_at — an opened email link confirms the address without a
-  // password ever being set, which would otherwise misclassify pending invites.
-  const passwordSet: Record<string, boolean> = {}
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const adminClient = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
-    const { data: { users } } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
-    for (const u of users) {
-      passwordSet[u.id] = !!u.user_metadata?.password_set
-    }
-  }
-
-  const pending = admins.filter((a) => !passwordSet[a.user_id])
-  const active  = admins.filter((a) =>  passwordSet[a.user_id])
+  // A partner is active once they've accepted the terms (stamped during
+  // onboarding). Partners sign in with OTP, not passwords, so password_set
+  // is never set and cannot be used as the readiness signal.
+  const pending = admins.filter((a) => !a.partner_terms_accepted_at)
+  const active  = admins.filter((a) =>  a.partner_terms_accepted_at)
 
   return (
     <div className="max-w-4xl">
