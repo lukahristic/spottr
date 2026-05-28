@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
-import { MapPinCheck, Zap, MessageCircle, User } from 'lucide-react-native'
+import { Users, MessageCircle, Menu } from 'lucide-react-native'
 import { colors } from '../../.claude/tokens/colors'
 import { supabase } from '../../lib/supabase'
 
@@ -19,26 +19,32 @@ const ACCENT   = '#DFAF3A'
 const INACTIVE = '#9A9186'
 
 const TABS: { name: string; label: string; Icon: React.ComponentType<IconProps> }[] = [
-  { name: 'index',    label: 'Check In', Icon: MapPinCheck    },
-  { name: 'live',     label: 'Live',     Icon: Zap            },
-  { name: 'messages', label: 'Inbox',    Icon: MessageCircle  },
-  { name: 'profile',  label: 'Profile',  Icon: User           },
+  { name: 'live',     label: 'Live',    Icon: Users          },
+  { name: 'messages', label: 'Inbox',   Icon: MessageCircle  },
+  { name: 'profile',  label: 'Menu',    Icon: Menu           },
 ]
 
 function FloatingTabBar({ state, navigation, unreadCount }: BottomTabBarProps & { unreadCount: number }) {
   const insets = useSafeAreaInsets()
 
-  const scales = useRef(TABS.map((_, i) => new Animated.Value(i === state.index ? 1 : 0.85))).current
+  // Key animated scales by tab name so hidden routes (href:null) in state.routes
+  // don't shift indices and read past the array.
+  const scales = useRef(
+    Object.fromEntries(TABS.map(t => [t.name, new Animated.Value(1)])) as Record<string, Animated.Value>
+  ).current
+
+  const focusedName = state.routes[state.index]?.name
+
   useEffect(() => {
-    scales.forEach((anim, i) => {
-      Animated.spring(anim, {
-        toValue: i === state.index ? 1 : 0.85,
+    TABS.forEach(t => {
+      Animated.spring(scales[t.name], {
+        toValue: t.name === focusedName ? 1.25 : 1,
         useNativeDriver: true,
         tension: 160,
         friction: 11,
       }).start()
     })
-  }, [state.index])
+  }, [focusedName])
 
   // Bottom of the pill must clear the system gesture bar (insets.bottom)
   // plus a comfortable visual gap (16px)
@@ -50,9 +56,10 @@ function FloatingTabBar({ state, navigation, unreadCount }: BottomTabBarProps & 
       style={[styles.wrapper, { paddingBottom: pillBottom }]}
     >
       <View style={styles.pill}>
-        {state.routes.map((route, index) => {
-          const isFocused = state.index === index
-          const tab = TABS.find(t => t.name === route.name) ?? TABS[index]
+        {state.routes.map((route) => {
+          const tab = TABS.find(t => t.name === route.name)
+          if (!tab) return null
+          const isFocused = route.name === focusedName
           const showBadge = tab.name === 'messages' && unreadCount > 0
 
           const onPress = () => {
@@ -73,7 +80,7 @@ function FloatingTabBar({ state, navigation, unreadCount }: BottomTabBarProps & 
               onPress={onPress}
               activeOpacity={0.75}
             >
-              <Animated.View style={[styles.iconWrap, { transform: [{ scale: scales[index] }] }]}>
+              <Animated.View style={[styles.iconWrap, { transform: [{ scale: scales[tab.name] }] }]}>
                 <tab.Icon size={20} strokeWidth={1.75} color={isFocused ? ACCENT : INACTIVE} />
                 {showBadge && (
                   <View style={styles.badge} />
@@ -83,13 +90,6 @@ function FloatingTabBar({ state, navigation, unreadCount }: BottomTabBarProps & 
               <Text style={[styles.label, { color: isFocused ? ACCENT : INACTIVE }]} numberOfLines={1}>
                 {tab.label}
               </Text>
-
-              <View
-                style={[
-                  styles.indicator,
-                  { backgroundColor: isFocused ? ACCENT : 'transparent' },
-                ]}
-              />
             </TouchableOpacity>
           )
         })}
@@ -164,7 +164,7 @@ export default function TabLayout() {
       tabBar={(props) => <FloatingTabBar {...props} unreadCount={totalUnread} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="index" />
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="live" />
       <Tabs.Screen name="messages" />
       <Tabs.Screen name="profile" />
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 0,
-    gap: 3,
+    gap: 5,
   },
 
   iconWrap: {
@@ -231,10 +231,4 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
 
-  indicator: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 1,
-  },
 })
