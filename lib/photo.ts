@@ -1,8 +1,5 @@
 import { supabase } from './supabase'
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-
 /*
  * Upload a profile photo (from a local Expo Camera URI) to Supabase Storage
  * and update the user's profiles row with the resulting URL.
@@ -11,18 +8,25 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
  * overwrite. To bust caches across clients, the public URL we store on the
  * profile includes a ?v=<timestamp> query string that changes on each upload.
  *
- * Why we don't use supabase.storage.upload() here
- * ────────────────────────────────────────────────
- * Both blob() and arrayBuffer() built from an Expo Camera file:// URI produce
- * a 0-byte multipart body inside React Native (the runtime's Blob/Buffer
- * implementation drops the binary when supabase-js wraps it for the request).
- * The server sees an empty body and returns 400.
+ * Why FormData + supabase-js (and not a hand-rolled fetch)
+ * ────────────────────────────────────────────────────────
+ * Two earlier approaches both failed in React Native:
  *
- * The reliable RN pattern is to POST directly to the Storage REST endpoint
- * with multipart FormData using the { uri, name, type } shape — RN's own
- * FormData implementation handles this natively on both iOS and Android and
- * produces a proper multipart payload. We let fetch set the Content-Type
- * boundary automatically.
+ *   1. supabase.storage.upload(path, blob) where blob came from
+ *      fetch(uri).blob() or arrayBuffer() — RN's runtime drops the binary
+ *      when supabase-js wraps it. Server gets 0 bytes → 400.
+ *
+ *   2. Hand-rolled fetch() POST to /storage/v1/object/... with FormData and
+ *      manually-set Authorization + apikey headers — on Android the native
+ *      okhttp layer that handles multipart-with-file-uri rebuilds the
+ *      request and silently drops the Authorization header. Server treats
+ *      the request as anon → auth.uid() is NULL → RLS denies INSERT → 403.
+ *
+ * The fix: build FormData with the RN file-shape object (the only binary
+ * form that survives the JS↔native bridge intact) AND let supabase-js own
+ * the auth headers. supabase-js accepts FormData as a body type and
+ * attaches Authorization + apikey via its internal request layer, so the
+ * JWT actually reaches Storage and auth.uid() resolves for RLS.
  *
  * Returns the new URL on success, or an error message string on failure.
  */
@@ -44,39 +48,15 @@ export async function uploadProfilePhoto(
     type: 'image/jpeg',
   } as unknown as Blob)
 
-  let uploadResponse: Response
-  try {
-    uploadResponse = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/profile-photos/${path}`,
-      {
-        method: 'POST',
-        headers: {
-          // Both auth headers are required. Authorization carries the user's
-          // JWT (so auth.uid() resolves in RLS); apikey tells the API gateway
-          // which project context to evaluate in. Without apikey, RLS runs
-          // in the anon role even with a valid Bearer — and our INSERT
-          // policy demands auth.uid() match the folder name, which fails
-          // immediately for anon. supabase-js sets both automatically;
-          // direct REST calls have to set them by hand.
-          Authorization: `Bearer ${session.access_token}`,
-          apikey: SUPABASE_ANON_KEY,
-          // x-upsert lets us overwrite the existing avatar.jpg at the same path.
-          'x-upsert': 'true',
-          // Intentionally NOT setting Content-Type — fetch will set
-          // 'multipart/form-data; boundary=...' for us. Setting it manually
-          // here strips the boundary and the request becomes unparseable.
-        },
-        body: formData,
-      }
-    )
-  } catch (err) {
-    console.error('[photo] Network error during upload:', String(err))
-    return { error: "Couldn't reach the server. Check your connection." }
-  }
+  const { error: uploadError } = await supabase.storage
+    .from('profile-photos')
+    .upload(path, formData as unknown as File, {
+      contentType: 'image/jpeg',
+      upsert: true,
+    })
 
-  if (!uploadResponse.ok) {
-    const errorBody = await uploadResponse.text().catch(() => '')
-    console.error('[photo] Upload failed:', uploadResponse.status, errorBody)
+  if (uploadError) {
+    console.error('[photo] Upload failed:', uploadError.message)
     return { error: 'Upload failed. Try again.' }
   }
 
