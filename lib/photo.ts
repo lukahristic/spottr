@@ -39,6 +39,54 @@ export async function uploadProfilePhoto(
 
   const path = `${userId}/avatar.jpg`
 
+  // ── Diagnostic: prove auth is actually working with this session ──────────
+  // We've been getting "RLS denies" on upload but can't tell whether the JWT
+  // is arriving, valid, or carrying the right user. Three quick checks:
+  //
+  //   1. getUser() round-trips to auth-api with the access_token. If this
+  //      fails, the token is invalid/expired and Storage will reject too.
+  //   2. Decode the sub claim from the JWT and confirm it matches the
+  //      session.user.id we're using to build the storage path.
+  //   3. Read our own profiles row — that table has an RLS policy gated on
+  //      auth.uid() = id. If this read succeeds, auth.uid() is resolving
+  //      end-to-end against Postgres for THIS session. If Storage still
+  //      rejects after that, the issue is Storage-specific, not auth.
+  try {
+    const token = session.access_token
+    const payloadB64Url = token.split('.')[1] ?? ''
+    const payloadB64 = payloadB64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = payloadB64 + '='.repeat((4 - (payloadB64.length % 4)) % 4)
+    const decoded = JSON.parse(
+      decodeURIComponent(
+        atob(padded)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+    )
+    console.log('[photo][diag] session.user.id =', userId)
+    console.log('[photo][diag] jwt sub        =', decoded.sub)
+    console.log('[photo][diag] jwt role       =', decoded.role)
+    console.log('[photo][diag] jwt exp        =', new Date(decoded.exp * 1000).toISOString())
+    console.log('[photo][diag] now            =', new Date().toISOString())
+    console.log('[photo][diag] aud            =', decoded.aud)
+    console.log('[photo][diag] iss            =', decoded.iss)
+  } catch (e) {
+    console.log('[photo][diag] jwt decode failed:', String(e))
+  }
+
+  const { data: getUserData, error: getUserErr } = await supabase.auth.getUser()
+  console.log('[photo][diag] getUser ok =', !!getUserData?.user, 'err =', getUserErr?.message ?? 'none')
+
+  const { data: profileProbe, error: probeErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle()
+  console.log('[photo][diag] profile self-read ok =', !!profileProbe, 'err =', probeErr?.message ?? 'none')
+
+  // ── Actual upload ─────────────────────────────────────────────────────────
+
   // RN FormData with the file-shape object — this is the only form of
   // binary upload that survives the JS-to-native bridge intact.
   const formData = new FormData()
