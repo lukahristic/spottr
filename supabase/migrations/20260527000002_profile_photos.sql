@@ -65,6 +65,7 @@ using (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Public reads are handled by the bucket's public = true flag — no SELECT
--- policy needed. Anyone with the URL can fetch the file, which is the
--- intended behavior.
+-- End-user reads via the /object/public/ URL are handled by the bucket's
+-- public = true flag. But storage-api's DELETE and UPDATE flows still need
+-- an authenticated SELECT against storage.objects to "see" the row before
+-- acting on it. That SELECT policy is added in 20260528000001.
