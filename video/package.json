@@ -1,0 +1,24 @@
+{
+  "name": "spottr-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cinematic promo video for Spottr — standalone Remotion project. NOT imported by the app or website.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render SpottrPromo out/spottr-promo.mp4",
+    "render:still": "remotion still SpottrPromo out/frame.png",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "@remotion/media-utils": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.4.0"
+  }
+}
