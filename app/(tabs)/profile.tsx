@@ -14,6 +14,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { Avatar, AvatarStyle } from '../../components/Avatar'
+import { ConfirmModal } from '../../components/ConfirmModal'
 import { colors } from '../../.claude/tokens/colors'
 
 const LEGAL_BASE = 'https://website-lukahristics-projects.vercel.app'
@@ -43,6 +44,7 @@ export default function ProfileScreen() {
   const [requestingVerification, setRequestingVerification] = useState(false)
   const [cancellingVerification, setCancellingVerification] = useState(false)
   const [checkingOut, setCheckingOut]     = useState(false)
+  const [showCheckOutModal, setShowCheckOutModal] = useState(false)
   const [signingOut, setSigningOut]       = useState(false)
 
   useFocusEffect(
@@ -105,6 +107,7 @@ export default function ProfileScreen() {
       .update({ is_active: false, checked_out_at: new Date().toISOString() })
       .eq('id', activeCheckinId)
     setCheckingOut(false)
+    setShowCheckOutModal(false)
     setActiveCheckinId(null)
     setCurrentVibe(null)
     router.replace('/(tabs)/live')
@@ -149,6 +152,21 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <ConfirmModal
+        visible={showCheckOutModal}
+        title="Done for today?"
+        message={
+          currentGym
+            ? `You'll stop showing up in the live list at ${currentGym}. Your conversations stay.`
+            : "You'll stop showing up in the live list. Your conversations stay."
+        }
+        confirmLabel="Check out"
+        onConfirm={handleCheckOut}
+        onCancel={() => setShowCheckOutModal(false)}
+        loading={checkingOut}
+        destructive
+      />
+
       <ScrollView contentContainerStyle={styles.scroll}>
 
         <View style={styles.header}>
@@ -216,7 +234,7 @@ export default function ProfileScreen() {
               ))}
               <Row
                 label={checkingOut ? '' : 'Check out'}
-                onPress={handleCheckOut}
+                onPress={() => setShowCheckOutModal(true)}
                 disabled={checkingOut}
                 destructive
                 trailing={checkingOut ? <ActivityIndicator color="#C0392B" /> : undefined}

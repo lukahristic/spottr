@@ -20,6 +20,7 @@ import { Pencil, Zap } from 'lucide-react-native'
 import { supabase } from '../../lib/supabase'
 import { shareGymInvite } from '../../lib/sharing'
 import { Avatar, AvatarStyle } from '../../components/Avatar'
+import { ConfirmModal } from '../../components/ConfirmModal'
 import { colors } from '../../.claude/tokens/colors'
 
 type Vibe =
@@ -104,6 +105,8 @@ export default function LiveListScreen() {
   const [editWomenOnlyMode, setEditWomenOnlyMode] = useState(false)
   const [editSaving, setEditSaving]             = useState(false)
   const [editError, setEditError]               = useState<string | null>(null)
+  const [checkingOut, setCheckingOut]           = useState(false)
+  const [showCheckOutModal, setShowCheckOutModal] = useState(false)
 
   const placeholder = useMemo(
     () => VIBE_PLACEHOLDERS[Math.floor(Math.random() * VIBE_PLACEHOLDERS.length)],
@@ -262,6 +265,27 @@ export default function LiveListScreen() {
     setShowEditModal(false)
   }
 
+  async function handleCheckOut() {
+    if (!myCheckinId || checkingOut) return
+    setCheckingOut(true)
+    const { error: dbError } = await supabase
+      .from('checkins')
+      .update({ is_active: false, checked_out_at: new Date().toISOString() })
+      .eq('id', myCheckinId)
+    setCheckingOut(false)
+
+    if (dbError) {
+      setShowCheckOutModal(false)
+      setError("Couldn't check out. Try again.")
+      return
+    }
+
+    // Re-running fetchCheckins finds no active check-in, which flips the
+    // screen to the not-checked-in state and clears the live list.
+    setShowCheckOutModal(false)
+    await fetchCheckins()
+  }
+
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null
 
@@ -366,6 +390,21 @@ export default function LiveListScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <ConfirmModal
+        visible={showCheckOutModal}
+        title="Done for today?"
+        message={
+          myGymName
+            ? `You'll stop showing up in the live list at ${myGymName}. Your conversations stay.`
+            : "You'll stop showing up in the live list. Your conversations stay."
+        }
+        confirmLabel="Check out"
+        onConfirm={handleCheckOut}
+        onCancel={() => setShowCheckOutModal(false)}
+        loading={checkingOut}
+        destructive
+      />
+
       {/* Status edit modal */}
       <Modal
         visible={showEditModal}
@@ -481,20 +520,33 @@ export default function LiveListScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <TouchableOpacity onPress={openEditModal} activeOpacity={0.7}>
-              <Text style={styles.headerName}>{myName ?? 'You'}</Text>
-              {myVibeDisplay ? (
-                <View style={styles.headerVibeRow}>
-                  <Text style={styles.headerVibe}>{myVibeDisplay}</Text>
-                  <Pencil size={14} color={colors.textSecondary} strokeWidth={1.75} style={{ marginLeft: 4 }} />
-                </View>
-              ) : null}
-              {myOpenToChat ? (
-                <View style={styles.opennessChip}>
-                  <Text style={styles.opennessChipText}>Open to chat</Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
+            <View style={styles.headerTopRow}>
+              <TouchableOpacity onPress={openEditModal} activeOpacity={0.7} style={styles.headerStatus}>
+                <Text style={styles.headerName}>{myName ?? 'You'}</Text>
+                {myVibeDisplay ? (
+                  <View style={styles.headerVibeRow}>
+                    <Text style={styles.headerVibe}>{myVibeDisplay}</Text>
+                    <Pencil size={14} color={colors.textSecondary} strokeWidth={1.75} style={{ marginLeft: 4 }} />
+                  </View>
+                ) : null}
+                {myOpenToChat ? (
+                  <View style={styles.opennessChip}>
+                    <Text style={styles.opennessChipText}>Open to chat</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowCheckOutModal(true)}
+                activeOpacity={0.7}
+                style={styles.checkOutPill}
+                disabled={checkingOut}
+              >
+                {checkingOut
+                  ? <ActivityIndicator color={colors.textSecondary} size="small" />
+                  : <Text style={styles.checkOutPillText}>Check out</Text>
+                }
+              </TouchableOpacity>
+            </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
@@ -613,6 +665,28 @@ const styles = StyleSheet.create({
 
   list:   { padding: 24, paddingBottom: 48, flexGrow: 1 },
   header: { marginBottom: 28 },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerStatus: { flex: 1 },
+  checkOutPill: {
+    flexShrink: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 92,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkOutPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
   headerName: {
     fontSize: 18,
     fontWeight: '700',
