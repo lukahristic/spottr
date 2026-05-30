@@ -60,6 +60,7 @@ function generateSeeds(): string[] {
 export default function EditProfileScreen() {
   const [loading, setLoading]             = useState(true)
   const [saving, setSaving]               = useState(false)
+  const [savingFields, setSavingFields]   = useState<Set<string>>(new Set())
   const [error, setError]                 = useState<string | null>(null)
   const [userId, setUserId]               = useState<string | null>(null)
 
@@ -201,9 +202,22 @@ export default function EditProfileScreen() {
     // keep current selection unless it was in the old grid (it may have been from profile)
   }
 
-  async function savePrivacyField(field: string, value: boolean) {
-    if (!userId) return
-    await supabase.from('profiles').update({ [field]: value }).eq('id', userId)
+  async function savePrivacyField(field: string, value: boolean, revert: () => void) {
+    if (!userId || savingFields.has(field)) return
+    setSavingFields((prev) => new Set(prev).add(field))
+    const { error: dbError } = await supabase
+      .from('profiles')
+      .update({ [field]: value })
+      .eq('id', userId)
+    setSavingFields((prev) => {
+      const next = new Set(prev)
+      next.delete(field)
+      return next
+    })
+    if (dbError) {
+      revert()
+      setError("Couldn't save that. Try again.")
+    }
   }
 
   async function handleSave() {
@@ -521,9 +535,10 @@ export default function EditProfileScreen() {
             <Text style={styles.privacyLabel}>{item.label}</Text>
             <Switch
               value={item.value}
+              disabled={savingFields.has(item.field)}
               onValueChange={(v) => {
                 item.set(v)
-                savePrivacyField(item.field, v)
+                savePrivacyField(item.field, v, () => item.set(!v))
               }}
               trackColor={{ false: '#C8C2BB', true: colors.accent }}
               thumbColor="#FFFFFF"
@@ -542,9 +557,10 @@ export default function EditProfileScreen() {
           </View>
           <Switch
             value={notifyGymActivity}
+            disabled={savingFields.has('notify_gym_activity')}
             onValueChange={(v) => {
               setNotifyGymActivity(v)
-              savePrivacyField('notify_gym_activity', v)
+              savePrivacyField('notify_gym_activity', v, () => setNotifyGymActivity(!v))
             }}
             trackColor={{ false: '#C8C2BB', true: colors.accent }}
             thumbColor="#FFFFFF"
