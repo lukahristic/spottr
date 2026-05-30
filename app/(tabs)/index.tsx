@@ -71,6 +71,10 @@ export default function YourGymsScreen() {
   const [gymsLoading, setGymsLoading]     = useState(true)
   const [activeGym, setActiveGym]         = useState<UserGym | null>(null)
   const [checkedInGymId, setCheckedInGymId] = useState<string | null>(null)
+  // How many people are checked in right now per gym_id. Mirrors the live
+  // list's freshness window (active + within 3h) so the number matches what
+  // a user sees when they open the gym.
+  const [liveCounts, setLiveCounts]       = useState<Record<string, number>>({})
 
   const [vibe, setVibe]                   = useState<Vibe>('Just showing up')
   const [customVibe, setCustomVibe]       = useState('')
@@ -164,6 +168,29 @@ export default function YourGymsScreen() {
       }))
 
     setUserGyms(mapped)
+
+    // Live "who's here right now" count per gym. One grouped query for all the
+    // user's gyms; tally client-side. Same active + 3h-fresh window the live
+    // list uses, so the number is consistent with the member list.
+    const gymIds = mapped.map((g) => g.gym_id)
+    if (gymIds.length) {
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+      const { data: liveRows } = await supabase
+        .from('checkins')
+        .select('gym_id')
+        .eq('is_active', true)
+        .gte('checked_in_at', threeHoursAgo)
+        .in('gym_id', gymIds)
+
+      const counts: Record<string, number> = {}
+      for (const r of (liveRows ?? []) as { gym_id: string }[]) {
+        counts[r.gym_id] = (counts[r.gym_id] ?? 0) + 1
+      }
+      setLiveCounts(counts)
+    } else {
+      setLiveCounts({})
+    }
+
     setGymsLoading(false)
   }
 
@@ -560,16 +587,34 @@ export default function YourGymsScreen() {
                       {isCheckedIn && <View style={styles.checkedInDot} />}
                     </View>
                     {gym.location ? <Text style={styles.gymCardLocation}>{gym.location}</Text> : null}
-                    <View style={styles.gymCardMeta}>
-                      {gym.visit_count > 0 && (
-                        <Text style={styles.gymCardStat}>{gym.visit_count} visit{gym.visit_count === 1 ? '' : 's'}</Text>
-                      )}
-                      {gym.last_checkin_at && (
-                        <Text style={styles.gymCardStat}>
-                          Last: {new Date(gym.last_checkin_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </Text>
-                      )}
-                    </View>
+                    {/* Live presence — the dynamic signal, promoted to its own line */}
+                    {(() => {
+                      const here = liveCounts[gym.gym_id] ?? 0
+                      return here >= 2 ? (
+                        <View style={styles.livePresence}>
+                          <View style={styles.liveDot} />
+                          <Text style={styles.liveText}>{here} here now</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.quietText}>Quiet right now</Text>
+                      )
+                    })()}
+
+                    {/* History — secondary, joined by a middot so the stats read as separate */}
+                    {(gym.visit_count > 0 || gym.last_checkin_at) && (
+                      <Text style={styles.gymCardHistory}>
+                        {[
+                          gym.visit_count > 0
+                            ? `${gym.visit_count} visit${gym.visit_count === 1 ? '' : 's'}`
+                            : null,
+                          gym.last_checkin_at
+                            ? `Last visit ${new Date(gym.last_checkin_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join('   ·   ')}
+                      </Text>
+                    )}
                   </View>
                 </TouchableOpacity>
 
@@ -848,8 +893,11 @@ const styles = StyleSheet.create({
   },
   gymCardName:     { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
   gymCardLocation: { fontSize: 13, color: colors.textSecondary },
-  gymCardMeta:     { flexDirection: 'row', gap: 12, marginTop: 4 },
-  gymCardStat:     { fontSize: 12, color: colors.textSecondary },
+  livePresence:    { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 },
+  liveDot:         { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.accent },
+  liveText:        { fontSize: 13, fontWeight: '600', color: colors.accent },
+  quietText:       { fontSize: 13, color: colors.textSecondary, marginTop: 6 },
+  gymCardHistory:  { fontSize: 12, color: colors.textSecondary, marginTop: 3, opacity: 0.85 },
   checkedInDot: {
     width: 8,
     height: 8,
