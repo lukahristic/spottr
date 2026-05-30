@@ -43,7 +43,7 @@ export default function SignInScreen() {
         authError.message?.toLowerCase().includes('invalid credentials')
       setError(
         isCredentialsError
-          ? "Hmm, that didn't work. Double-check and try again."
+          ? "That didn't work. Double-check and try again."
           : "Something's off on our end. Give it another shot."
       )
       return
@@ -136,7 +136,7 @@ export default function SignInScreen() {
           >
             <Text style={styles.switchText}>
               Don't have an account?{' '}
-              <Text style={styles.switchHighlight}>Join us</Text>
+              <Text style={styles.switchHighlight}>Sign up</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>

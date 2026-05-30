@@ -10,7 +10,7 @@ export default function WelcomeScreen() {
 
         <View style={styles.brand}>
           <Image source={require('../../assets/spottr_logo.png')} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.tagline}>The gym is less scary with people in it.</Text>
+          <Text style={styles.tagline}>See who else showed up.</Text>
         </View>
 
         <View style={styles.actions}>
@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/(auth)/sign-up')}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryButtonText}>Get Started</Text>
+            <Text style={styles.primaryButtonText}>Create account</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

@@ -33,14 +33,10 @@ export default function ProfileScreen() {
   const [womenVerified, setWomenVerified]         = useState(false)
   const [verificationRequested, setVerificationRequested] = useState(false)
 
-  const [showGymsVisited, setShowGymsVisited]               = useState(false)
-  const [showConnectionsStarted, setShowConnectionsStarted] = useState(false)
   const [showCurrentGym, setShowCurrentGym]                 = useState(false)
   const [showExperienceLevel, setShowExperienceLevel]       = useState(false)
   const [showFitnessGoal, setShowFitnessGoal]               = useState(false)
 
-  const [gymsVisited, setGymsVisited]               = useState(0)
-  const [connectionsStarted, setConnectionsStarted] = useState(0)
   const [currentGym, setCurrentGym]                 = useState<string | null>(null)
   const [experienceLevel, setExperienceLevel]       = useState<string | null>(null)
   const [fitnessGoal, setFitnessGoal]               = useState<string | null>(null)
@@ -61,12 +57,10 @@ export default function ProfileScreen() {
         const [
           { data: profile },
           { data: checkin },
-          { count: gymsCount },
-          { count: connsCount },
         ] = await Promise.all([
           supabase
             .from('profiles')
-            .select('bio, avatar_seed, avatar_style, women_verified, verification_requested_at, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, photo_url')
+            .select('bio, avatar_seed, avatar_style, women_verified, verification_requested_at, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, photo_url')
             .eq('id', user.id)
             .maybeSingle(),
           supabase
@@ -75,14 +69,6 @@ export default function ProfileScreen() {
             .eq('user_id', user.id)
             .eq('is_active', true)
             .maybeSingle(),
-          supabase
-            .from('user_gyms')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id),
-          supabase
-            .from('threads')
-            .select('*', { count: 'exact', head: true })
-            .eq('initiated_by', user.id),
         ])
 
         setBio(profile?.bio ?? null)
@@ -92,14 +78,10 @@ export default function ProfileScreen() {
         setWomenVerified(profile?.women_verified ?? false)
         setVerificationRequested(!!profile?.verification_requested_at)
 
-        setShowGymsVisited(profile?.show_gyms_visited ?? false)
-        setShowConnectionsStarted(profile?.show_connections_started ?? false)
         setShowCurrentGym(profile?.show_current_gym ?? false)
         setShowExperienceLevel(profile?.show_experience_level ?? false)
         setShowFitnessGoal(profile?.show_fitness_goal ?? false)
 
-        setGymsVisited(gymsCount ?? 0)
-        setConnectionsStarted(connsCount ?? 0)
         setExperienceLevel(profile?.experience_level ?? null)
         setFitnessGoal(profile?.fitness_goal ?? null)
 
@@ -164,12 +146,6 @@ export default function ProfileScreen() {
     sessionStats.push({ label: 'Level', value: experienceLevel })
   if (showFitnessGoal && fitnessGoal)
     sessionStats.push({ label: 'Goal', value: fitnessGoal })
-
-  const activityStats: { label: string; value: string }[] = []
-  if (showGymsVisited && gymsVisited > 0)
-    activityStats.push({ label: gymsVisited === 1 ? 'Gym' : 'Gyms visited', value: String(gymsVisited) })
-  if (showConnectionsStarted && connectionsStarted > 0)
-    activityStats.push({ label: connectionsStarted === 1 ? 'Connection' : 'Connections', value: String(connectionsStarted) })
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -245,22 +221,6 @@ export default function ProfileScreen() {
                 destructive
                 trailing={checkingOut ? <ActivityIndicator color="#C0392B" /> : undefined}
               />
-            </View>
-          </View>
-        )}
-
-        {activityStats.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeader label="Activity" />
-            <View style={styles.card}>
-              {activityStats.map((s, i) => (
-                <Row
-                  key={s.label}
-                  label={s.label}
-                  value={s.value}
-                  divider={i < activityStats.length - 1}
-                />
-              ))}
             </View>
           </View>
         )}

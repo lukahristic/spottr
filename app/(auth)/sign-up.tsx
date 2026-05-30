@@ -278,7 +278,7 @@ export default function SignUpScreen() {
 
           {underageBlocked && (
             <Text style={styles.underageMsg}>
-              Spottr is for adults 18 and over. Thanks for understanding.
+              Spottr is for adults 18 and over.
             </Text>
           )}
           {dobComplete && !dobValid && (
@@ -337,7 +337,7 @@ export default function SignUpScreen() {
           {emailTaken && (
             <View style={styles.takenBox}>
               <Text style={styles.takenText}>
-                Looks like you already have an account.
+                That email is already registered.
               </Text>
               <TouchableOpacity
                 onPress={() => router.replace('/(auth)/sign-in')}

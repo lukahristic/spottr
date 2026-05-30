@@ -81,8 +81,6 @@ export default function EditProfileScreen() {
   const [verificationSent, setVerificationSent] = useState(false)
   const [showChangeEmail, setShowChangeEmail] = useState(false)
 
-  const [showGymsVisited, setShowGymsVisited]               = useState(true)
-  const [showConnectionsStarted, setShowConnectionsStarted] = useState(true)
   const [showCurrentGym, setShowCurrentGym]                 = useState(false)
   const [showExperienceLevel, setShowExperienceLevel]       = useState(true)
   const [showFitnessGoal, setShowFitnessGoal]               = useState(true)
@@ -105,7 +103,7 @@ export default function EditProfileScreen() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('bio, avatar_seed, avatar_style, show_gyms_visited, show_connections_started, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, notify_gym_activity, photo_url')
+        .select('bio, avatar_seed, avatar_style, show_current_gym, show_experience_level, show_fitness_goal, experience_level, fitness_goal, notify_gym_activity, photo_url')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -115,8 +113,6 @@ export default function EditProfileScreen() {
       setGridSeeds(generateSeeds())
       setPhotoUrl(profile?.photo_url ?? null)
 
-      setShowGymsVisited(profile?.show_gyms_visited ?? true)
-      setShowConnectionsStarted(profile?.show_connections_started ?? true)
       setShowCurrentGym(profile?.show_current_gym ?? false)
       setShowExperienceLevel(profile?.show_experience_level ?? true)
       setShowFitnessGoal(profile?.show_fitness_goal ?? true)
@@ -266,7 +262,17 @@ export default function EditProfileScreen() {
             <ChevronLeft size={22} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.heading}>Edit profile</Text>
-          <View style={styles.backBtn} />
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.6}
+            style={[styles.saveHeaderBtn, saving && { opacity: 0.4 }]}
+          >
+            {saving
+              ? <ActivityIndicator size="small" color={colors.accent} />
+              : <Text style={styles.saveHeaderText}>Save</Text>
+            }
+          </TouchableOpacity>
         </View>
 
         {/* Avatar preview — shows real photo if uploaded, else generated avatar */}
@@ -507,8 +513,6 @@ export default function EditProfileScreen() {
         {/* Privacy */}
         <Text style={styles.sectionLabel}>What others can see on your profile</Text>
         {([
-          { field: 'show_gyms_visited',        label: 'Gyms visited',          value: showGymsVisited,        set: setShowGymsVisited },
-          { field: 'show_connections_started',  label: 'Connections started',   value: showConnectionsStarted, set: setShowConnectionsStarted },
           { field: 'show_current_gym',          label: 'Current gym',           value: showCurrentGym,         set: setShowCurrentGym },
           { field: 'show_experience_level',     label: 'Experience level',      value: showExperienceLevel,    set: setShowExperienceLevel },
           { field: 'show_fitness_goal',         label: 'Fitness goal',          value: showFitnessGoal,        set: setShowFitnessGoal },
@@ -550,18 +554,6 @@ export default function EditProfileScreen() {
         <View style={styles.divider} />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-          disabled={saving}
-          onPress={handleSave}
-          activeOpacity={0.85}
-        >
-          {saving
-            ? <ActivityIndicator color={colors.textPrimary} />
-            : <Text style={styles.saveBtnText}>Save</Text>
-          }
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   )
@@ -578,8 +570,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 28,
   },
-  backBtn: { width: 32 },
+  backBtn: { flex: 1, alignItems: 'flex-start' },
   heading: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  saveHeaderBtn: { flex: 1, alignItems: 'flex-end', justifyContent: 'center' },
+  saveHeaderText: { fontSize: 15, fontWeight: '600', color: colors.accent },
 
   photoCtaWrap: {
     marginBottom: 24,
@@ -832,17 +826,4 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  saveBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  saveBtnDisabled: { opacity: 0.4 },
-  saveBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
 })

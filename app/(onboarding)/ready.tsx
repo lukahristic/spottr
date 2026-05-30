@@ -15,11 +15,10 @@ export default function ReadyScreen() {
       <View style={styles.container}>
 
         <View style={styles.message}>
-          <Text style={styles.set}>You're all set.</Text>
+          <Text style={styles.set}>You're set.</Text>
           <Text style={styles.reason}>
-            A familiar face can change a workout.
+            Check in when you're there. See who else showed up.
           </Text>
-          <Text style={styles.warmNote}>Everyone starts somewhere.</Text>
         </View>
 
         <View style={styles.actions}>
@@ -68,11 +67,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.textSecondary,
     lineHeight: 30,
-  },
-  warmNote: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 8,
   },
   actions: {
     gap: 16,

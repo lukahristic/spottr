@@ -63,9 +63,9 @@ export default function HowItWorksScreen() {
           <View style={styles.cardIconWrap}>
             <MessageCircle size={20} color={colors.accent} strokeWidth={1.75} />
           </View>
-          <Text style={styles.cardTitle}>Connect naturally</Text>
+          <Text style={styles.cardTitle}>Send one intro</Text>
           <Text style={styles.cardBody}>
-            Send a short intro before walking over. One message. No pressure.
+            Send a short intro before walking over. One message.
           </Text>
         </View>
 

@@ -59,7 +59,7 @@ export default function ResetPasswordScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.heading}>Choose a new password.</Text>
-          <Text style={styles.subheading}>Make it something you'll remember.</Text>
+
 
           <Text style={styles.label}>New password</Text>
           <View style={styles.inputWrap}>

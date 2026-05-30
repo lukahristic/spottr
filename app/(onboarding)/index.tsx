@@ -17,7 +17,7 @@ export default function OnboardingWelcomeScreen() {
             Real people.{'\n'}Real gyms.
           </Text>
           <Text style={styles.body}>
-            Take your time.{'\n'}Just people at the same gym.
+            Your gym. The people already there.
           </Text>
         </View>
 
