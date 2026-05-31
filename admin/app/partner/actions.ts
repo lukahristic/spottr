@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -92,7 +93,20 @@ export async function uploadLogo(
   const path     = `${gymId}/logo.${ext}`
   const arrayBuf = await file.arrayBuffer()
 
-  const { error: uploadErr } = await supabase
+  // The user's session JWT isn't attached to storage requests inside a server
+  // action, so a user-session upload hits the bucket as `anon` and trips the
+  // gym-logos RLS policy. We've already authorized the gym via resolveMyGymId
+  // and scoped the path to it, so do the write with a service-role client —
+  // same trust model as hq/actions.ts.
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { error: 'Server configuration error.' }
+  }
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  )
+
+  const { error: uploadErr } = await adminClient
     .storage
     .from('gym-logos')
     .upload(path, arrayBuf, {
@@ -105,7 +119,7 @@ export async function uploadLogo(
     return { error: uploadErr.message }
   }
 
-  const { data: pub } = supabase.storage.from('gym-logos').getPublicUrl(path)
+  const { data: pub } = adminClient.storage.from('gym-logos').getPublicUrl(path)
   const publicUrl = `${pub.publicUrl}?v=${Date.now()}`
 
   const { error: dbErr } = await supabase
