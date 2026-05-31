@@ -7,76 +7,117 @@ import { LightField } from "../ui/LightField";
 import { PhoneStage } from "../ui/PhoneStage";
 import { PhoneShell } from "../ui/PhoneShell";
 import { MemberCard } from "../ui/MemberCard";
-import { ActiveBadge } from "../ui/ActiveBadge";
 import { Caption } from "../ui/Caption";
-import { MEMBERS, ARRIVING_MEMBER } from "../data/members";
-import { fadeUp } from "../motion/fadeUp";
-import { EASE } from "../theme/ease";
+import { MEMBERS, type Vibe } from "../data/members";
+import { reorderY } from "../motion/reorder";
+import { COLORS } from "../theme/tokens";
+import { SANS } from "../theme/fonts";
 
 const D = SCENES.s3;
-const TICK = 56; // frame at which the 5th member arrives
+const SELECT = 64; // frame the "Locked in" vibe is chosen
+const ROW = 62;
 
-/* Scene 3 — Aliveness. The list breathes: the count ticks 4→5 and a new member
- * slides in. A floating "3 open to chat" badge drifts in. This is the signature
- * "the app is real and active" gesture. */
+const VIBES: Vibe[] = [
+  "Locked in",
+  "Finding my rhythm",
+  "Taking it easy",
+  "Quick session",
+  "In between sets",
+  "Just showing up",
+];
+const SELECTED: Vibe = "Locked in";
+const SELECTED_INDEX = 0;
+
+// Four visible members; two are "Locked in" so the reflow is legible.
+const VISIBLE = [MEMBERS[0], MEMBERS[1], MEMBERS[2], MEMBERS[6]]; // Maya, Alex, Sam, Lena
+// Where each card lands once "Locked in" rises to the top.
+const TO_INDEX = [2, 0, 3, 1]; // Maya↓, Alex↑, Sam↓, Lena↑
+
+/* Scene 3 — "Vibes". A vibe-chip ticker sweeps and locks on "Locked in"; the
+ * member cards physically reflow so matching vibes rise to the top. The system,
+ * working. */
 export const S3Aliveness: React.FC = () => {
   const frame = useCurrentFrame();
-  const ticked = frame >= TICK;
 
-  // Arriving card: expand height + fade as it joins the list.
-  const arriveOpacity = interpolate(frame, [TICK, TICK + 16], [0, 1], {
+  // Chip ticker: sweeps 0→5, then snaps to the selected vibe.
+  const active =
+    frame < SELECT
+      ? Math.min(VIBES.length - 1, Math.floor(Math.max(0, frame - 8) / 7))
+      : SELECTED_INDEX;
+  const lockPulse = interpolate(frame, [SELECT, SELECT + 8, SELECT + 20], [1, 1.12, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const arriveHeight = interpolate(frame, [TICK, TICK + 18], [0, 56], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: EASE,
-  });
-  const arriveX = interpolate(frame, [TICK, TICK + 18], [16, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: EASE,
-  });
-
-  const badge = fadeUp(frame, { delay: 20, duration: 22, distance: 20 });
 
   return (
-    <CrossFade durationInFrames={D} fadeIn={16} fadeOut={16}>
-      <CameraDrift durationInFrames={D} scaleFrom={1.04} scaleTo={1.07} driftX={-14}>
-        <LightField durationInFrames={D} driftY={-6} intensity={0.8} />
+    <CrossFade durationInFrames={D} fadeIn={14} fadeOut={14}>
+      <CameraDrift durationInFrames={D} scaleFrom={1.03} scaleTo={1.06} driftX={-8}>
+        <LightField durationInFrames={D} driftY={6} intensity={0.7} />
+        <PhoneStage cy={860} scale={2.2} bobAmp={3}>
+          <PhoneShell countLabel="5 here now" title="Here now" activeTab="users">
+            {/* Vibe chip ticker */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, paddingBottom: 4 }}>
+              {VIBES.map((v, i) => {
+                const on = i === active;
+                const isLocked = frame >= SELECT && i === SELECTED_INDEX;
+                return (
+                  <span
+                    key={v}
+                    style={{
+                      fontSize: 8.5,
+                      fontWeight: 600,
+                      fontFamily: SANS,
+                      padding: "3px 8px",
+                      borderRadius: 999,
+                      background: on ? COLORS.gold : COLORS.surface,
+                      color: on ? COLORS.ink : COLORS.mute,
+                      transform: isLocked ? `scale(${lockPulse})` : "none",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {v}
+                  </span>
+                );
+              })}
+            </div>
 
-        <PhoneStage cy={840}>
-          <PhoneShell countLabel={ticked ? "5 members" : "4 members"} activeTab="users">
-            {MEMBERS.map((m) => (
-              <MemberCard key={m.initials} member={m} />
-            ))}
-            {/* Arriving member — collapses from 0 height so the list grows live */}
-            <div style={{ height: arriveHeight, overflow: "hidden", flexShrink: 0 }}>
-              <MemberCard
-                member={ARRIVING_MEMBER}
-                style={{ opacity: arriveOpacity, transform: `translateX(${arriveX}px)` }}
-              />
+            {/* Reordering list — absolutely positioned cards sliding into slots */}
+            <div style={{ position: "relative", height: ROW * VISIBLE.length, marginTop: 2 }}>
+              {VISIBLE.map((m, i) => {
+                const y = reorderY(frame, i, TO_INDEX[i], {
+                  rowHeight: ROW,
+                  startAt: SELECT,
+                  duration: 26,
+                });
+                const isMatch = m.vibe === SELECTED;
+                const highlight = frame >= SELECT && isMatch ? 1 : 0;
+                return (
+                  <div
+                    key={m.seed}
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      transform: `translateY(${y}px)`,
+                    }}
+                  >
+                    <MemberCard
+                      member={m}
+                      style={{
+                        outline: highlight ? `1.5px solid ${COLORS.gold}` : "none",
+                        outlineOffset: 1,
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </PhoneShell>
         </PhoneStage>
 
-        {/* Floating active badge — foreground plane, lower-left, scaled up */}
-        <div
-          style={{
-            position: "absolute",
-            left: 96,
-            top: 1170,
-            transform: `scale(2) translateY(${(1 - badge.opacity) * 18}px)`,
-            transformOrigin: "left center",
-            opacity: badge.opacity,
-          }}
-        >
-          <ActiveBadge />
-        </div>
-
         <AbsoluteFill style={{ alignItems: "center", justifyContent: "flex-end", paddingBottom: 150 }}>
-          <Caption text="Vibes — where you're at, not who you are." delay={30} />
+          <Caption text="Vibes — where you're at, not who you are." delay={SELECT + 18} />
         </AbsoluteFill>
       </CameraDrift>
     </CrossFade>

@@ -1,8 +1,9 @@
 import React from "react";
-import { COLORS, SHADOW, VIBE_TEXT } from "../theme/tokens";
+import { Img, staticFile } from "remotion";
+import { COLORS, SHADOW } from "../theme/tokens";
 
 /* Floating reply notification — Maya's avatar + name + quoted reply.
- * Ported 1:1 from Hero.tsx ReplyBubble. */
+ * Uses the same DiceBear avatar as her live card for continuity. */
 export const ReplyBubble: React.FC = () => (
   <div
     style={{
@@ -21,14 +22,15 @@ export const ReplyBubble: React.FC = () => (
         width: 32,
         height: 32,
         borderRadius: 999,
-        background: COLORS.sky,
+        background: COLORS.surface,
         flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        overflow: "hidden",
       }}
     >
-      <span style={{ fontSize: 9, fontWeight: 700, color: VIBE_TEXT.blue }}>MR</span>
+      <Img
+        src={staticFile("avatars/maya-r.png")}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
     </div>
     <div style={{ minWidth: 0 }}>
       <p style={{ fontSize: 11, fontWeight: 600, color: COLORS.ink, lineHeight: 1.35, margin: 0 }}>
